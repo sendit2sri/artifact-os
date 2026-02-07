@@ -1,0 +1,16 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/apps/backend/.venv/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/apps/backend"
+  ],
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/__pycache__": true
+  },
+  "makefile.configureOnOpen": false,
+  "cursorpyright.analysis.extraPaths": [
+    "${workspaceFolder}/apps/backend"
+  ]
+}

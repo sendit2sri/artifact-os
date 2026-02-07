@@ -1,0 +1,362 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* -------- Core Canvas -------- */
+    --background: 0 0% 99.2%;
+    --foreground: 222 18% 14%;
+
+    /* -------- Surfaces -------- */
+    --surface: 0 0% 100%;
+    --surface-2: 220 20% 98%;
+    --elevated: 0 0% 100%;
+    --popover: 0 0% 100%;
+
+    /* -------- Typography -------- */
+    --muted-foreground: 220 10% 42%;
+    --faint-foreground: 220 10% 55%;
+
+    /* -------- Borders / Dividers -------- */
+    --border: 220 16% 90%;
+    --border-subtle: 220 16% 94%;
+    --ring: 220 80% 55%;
+
+    /* -------- Brand / Primary -------- */
+    --primary: 222 85% 54%;
+    --primary-foreground: 0 0% 100%;
+
+    /* -------- Neutral UI -------- */
+    --muted: 220 16% 96%;
+    --muted-2: 220 14% 94%;
+    --accent: 220 16% 96%;
+    --accent-foreground: 222 18% 14%;
+
+    /* -------- Card -------- */
+    --card: 0 0% 100%;
+    --card-foreground: 222 18% 14%;
+
+    /* -------- Inputs -------- */
+    --input: 220 16% 92%;
+
+    /* -------- Status Colors -------- */
+    --success: 142 65% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 18 20% 12%;
+    --danger: 0 84% 58%;
+    --danger-foreground: 0 0% 100%;
+    --info: 199 90% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* -------- Shadows (2026: soft + layered) -------- */
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.10);
+    --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.15);
+
+    /* -------- Radius (modern: slightly rounder) -------- */
+    --radius: 0.5rem;
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+
+    /* -------- Evidence / Reader Tokens -------- */
+    --reader-bg: 0 0% 100%;
+    --reader-foreground: 222 18% 14%;
+    --raw-bg: 220 20% 98%;
+    --raw-foreground: 220 14% 32%;
+
+    /* Highlight (quotes, citations) - 2026: subtle, not bright yellow */
+    --quote-bg: 222 85% 96%;
+    --quote-border: 222 85% 54%;
+    --quote-text: 222 18% 14%;
+    
+    /* Evidence highlighting */
+    --evidence-bg: 45 100% 85%;
+    --evidence-fg: 222 18% 14%;
+    --evidence-border: 45 85% 50%;
+
+    /* Selection */
+    --selection-bg: 210 100% 92%;
+    --selection-text: 222 18% 14%;
+
+    /* Fact row states */
+    --fact-hover: 220 20% 97%;
+    --fact-selected: 222 90% 96%;
+    --fact-selected-border: 222 85% 68%;
+
+    /* -------- Chart colors -------- */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    /* -------- Core Canvas -------- */
+    --background: 222 18% 8%;
+    --foreground: 220 18% 92%;
+
+    /* -------- Surfaces -------- */
+    --surface: 222 16% 10%;
+    --surface-2: 222 14% 12%;
+    --elevated: 222 14% 13%;
+    --popover: 222 14% 13%;
+
+    /* -------- Typography -------- */
+    --muted-foreground: 220 10% 70%;
+    --faint-foreground: 220 8% 58%;
+
+    /* -------- Borders / Dividers -------- */
+    --border: 220 14% 18%;
+    --border-subtle: 220 14% 16%;
+    --ring: 222 90% 65%;
+
+    /* -------- Brand / Primary -------- */
+    --primary: 222 90% 62%;
+    --primary-foreground: 222 18% 10%;
+
+    /* -------- Neutral UI -------- */
+    --muted: 222 14% 14%;
+    --muted-2: 222 14% 16%;
+    --accent: 222 14% 14%;
+    --accent-foreground: 220 18% 92%;
+
+    /* -------- Card -------- */
+    --card: 222 16% 11%;
+    --card-foreground: 220 18% 92%;
+
+    /* -------- Inputs -------- */
+    --input: 222 14% 18%;
+
+    /* -------- Status Colors -------- */
+    --success: 142 55% 48%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 52%;
+    --warning-foreground: 18 20% 12%;
+    --danger: 0 80% 60%;
+    --danger-foreground: 0 0% 100%;
+    --info: 199 90% 56%;
+    --info-foreground: 0 0% 100%;
+
+    /* -------- Shadows (dark: more subtle, more spread) -------- */
+    --shadow-xs: 0 1px 0 rgba(0, 0, 0, 0.25);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 12px 28px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.55);
+
+    /* -------- Radius -------- */
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+
+    /* -------- Evidence / Reader Tokens -------- */
+    --reader-bg: 222 16% 10%;
+    --reader-foreground: 220 18% 92%;
+    --raw-bg: 222 14% 12%;
+    --raw-foreground: 220 12% 76%;
+
+    /* Highlight (dark: subtle accent, not bright) */
+    --quote-bg: 222 50% 14%;
+    --quote-border: 222 90% 62%;
+    --quote-text: 222 18% 92%;
+    
+    /* Evidence highlighting - brighter for dark mode */
+    --evidence-bg: 45 90% 60%;
+    --evidence-fg: 0 0% 10%;
+    --evidence-border: 45 100% 50%;
+
+    /* Selection */
+    --selection-bg: 222 50% 20%;
+    --selection-text: 220 18% 92%;
+
+    /* Fact row states */
+    --fact-hover: 222 14% 13%;
+    --fact-selected: 222 24% 16%;
+    --fact-selected-border: 222 90% 62%;
+
+    /* -------- Chart colors -------- */
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Custom scrollbar styles */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thumb-stone-300::-webkit-scrollbar-thumb {
+    background-color: rgb(214 211 209);
+    border-radius: 3px;
+  }
+
+  .dark .scrollbar-thumb-stone-700::-webkit-scrollbar-thumb {
+    background-color: rgb(68 64 60);
+  }
+
+  .scrollbar-track-transparent::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  /* Modern shimmer animation for skeleton loaders */
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  /* Custom text selection colors */
+  ::selection {
+    background: hsl(var(--selection-bg));
+    color: hsl(var(--selection-text));
+  }
+
+  /* Prose styling for markdown content */
+  .prose {
+    --tw-prose-body: hsl(var(--foreground));
+    --tw-prose-headings: hsl(var(--foreground));
+    --tw-prose-lead: hsl(var(--muted-foreground));
+    --tw-prose-links: hsl(var(--primary));
+    --tw-prose-bold: hsl(var(--foreground));
+    --tw-prose-counters: hsl(var(--muted-foreground));
+    --tw-prose-bullets: hsl(var(--muted-foreground));
+    --tw-prose-hr: hsl(var(--border));
+    --tw-prose-quotes: hsl(var(--foreground));
+    --tw-prose-quote-borders: hsl(var(--border));
+    --tw-prose-captions: hsl(var(--muted-foreground));
+    --tw-prose-code: hsl(var(--foreground));
+    --tw-prose-pre-code: hsl(var(--foreground));
+    --tw-prose-pre-bg: hsl(var(--surface-2));
+    --tw-prose-th-borders: hsl(var(--border));
+    --tw-prose-td-borders: hsl(var(--border));
+  }
+  
+  .prose h1, .prose h2, .prose h3 {
+    @apply font-semibold;
+  }
+
+  .prose p {
+    @apply leading-relaxed;
+  }
+
+  .prose code {
+    @apply bg-surface-2 px-1.5 py-0.5 rounded text-sm;
+  }
+
+  .prose pre {
+    @apply bg-surface-2 border border-border/50 shadow-sm;
+  }
+
+  .prose blockquote {
+    @apply border-l-2 border-quote-border bg-quote-bg/30 pl-4 italic;
+  }
+
+  .prose table {
+    @apply border border-border/50;
+  }
+
+  .prose th, .prose td {
+    @apply border border-border/30 px-4 py-2;
+  }
+
+  .prose a {
+    @apply text-primary hover:underline;
+  }
+
+  /* Evidence highlighting - precise, visible in both light and dark modes */
+  mark[data-evidence-mark="true"],
+  mark.evidence-highlight,
+  mark#evidence-mark,
+  .evidence-mark {
+    background: hsl(var(--evidence-bg));
+    color: hsl(var(--evidence-fg));
+    border-left: 3px solid hsl(var(--evidence-border));
+    border-radius: 4px;
+    padding: 0.15rem 0.3rem;
+    margin: -0.15rem 0;
+    box-shadow: 0 0 0 3px hsl(var(--evidence-bg) / 0.3);
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  /* Dark mode: Use theme-aware variables */
+  .dark mark[data-evidence-mark="true"],
+  .dark mark.evidence-highlight,
+  .dark mark#evidence-mark,
+  .dark .evidence-mark {
+    background: hsl(var(--evidence-bg));
+    color: hsl(var(--evidence-fg));
+    border-left-color: hsl(var(--evidence-border));
+    box-shadow: 0 0 0 3px hsl(var(--evidence-bg) / 0.25);
+  }
+
+  /* Pulse animation for evidence highlight - draws attention on scroll */
+  @keyframes evidence-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 3px hsl(var(--evidence-bg) / 0.3);
+      border-left-width: 3px;
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 0 0 8px hsl(var(--evidence-border) / 0.4);
+      border-left-width: 4px;
+      transform: scale(1.02);
+    }
+  }
+
+  .evidence-pulse {
+    animation: evidence-pulse 1.2s ease-in-out;
+  }
+
+  /* Reader view - clean paragraphs with spacing */
+  .reader-content p {
+    @apply mb-6 leading-relaxed;
+  }
+
+  .reader-content h2 {
+    @apply text-xl font-bold mt-8 mb-4 tracking-tight;
+  }
+
+  .reader-content ul, .reader-content ol {
+    @apply my-6 ml-6 space-y-2;
+  }
+
+  .reader-content li {
+    @apply leading-relaxed;
+  }
+
+  /* Raw view - preserve formatting */
+  .raw-content {
+    @apply font-mono text-xs leading-relaxed whitespace-pre-wrap break-words;
+  }
+}

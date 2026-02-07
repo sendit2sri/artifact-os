@@ -1,0 +1,30 @@
+artifact-os/
+├── .env.example                 # Template for secrets (OpenAI, Supabase, etc.)
+├── .gitignore
+├── docker-compose.yml           # Local Infra (Postgres, Redis, MinIO)
+├── Makefile                     # Shortcuts (up, down, logs, shell)
+├── apps/
+│   ├── backend/                 # FastAPI + Celery (Python)
+│   │   ├── Dockerfile
+│   │   ├── pyproject.toml       # Dependencies (uv/poetry)
+│   │   ├── alembic.ini          # DB Migrations
+│   │   └── app/
+│   │       ├── __init__.py
+│   │       ├── main.py          # FastAPI Entrypoint
+│   │       ├── core/            # Config, Security, Logging
+│   │       ├── db/              # SQLModel Setup, Session Management
+│   │       ├── models/          # Domain: Project, SourceDoc, Fact, Job
+│   │       ├── api/             # Routes: /ingest, /export, /visuals
+│   │       ├── services/        # Logic: Firecrawl, Playwright, ExportManager
+│   │       └── workers/         # Celery Tasks: ingest_task, render_task
+│   └── web/                     # Next.js 14+ (App Router)
+│       ├── Dockerfile
+│       ├── package.json
+│       ├── tailwind.config.ts   # Defined with "Evidence Palette"
+│       └── src/
+│           ├── app/             # Pages: /dashboard, /canvas, /settings
+│           ├── components/      # FactCard, CanvasBoard, Shadcn primitives
+│           ├── lib/             # API Client, Zod Schemas, Utils
+│           └── hooks/           # useProjectFacts (TanStack Query)
+└── infra/                       # Configs for local services
+    └── supabase/                # (Optional) Local Supabase config

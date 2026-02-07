@@ -1,0 +1,255 @@
+## Synthesis E2E Tests - Deterministic & Non-Flaky Patch
+## Date: 2026-02-07
+
+################################################################################
+# FILE: apps/web/src/components/OutputDrawer.tsx
+################################################################################
+
+@@ Line 33-36 @@
+     return (
+         <Sheet open={open} onOpenChange={onOpenChange}>
+             <SheetContent
++                data-testid="output-drawer"
++                role="dialog"
+                 side="right"
+                 className="w-[600px] sm:w-[700px] flex flex-col p-0 gap-0 shadow-2xl border-l border-border bg-surface"
+             >
+
+@@ Line 90-95 @@
+                     <Button
++                        data-testid="output-drawer-close"
+                         variant="ghost"
+                         onClick={() => onOpenChange(false)}
+                     >
+                         <X className="w-4 h-4" />
+                     </Button>
+
+################################################################################
+# FILE: apps/web/src/app/project/[id]/page.tsx
+################################################################################
+
+@@ Line 876-880 @@
+                             <Button
++                                data-testid="generate-synthesis"
+                                 size="sm"
+                                 className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 text-sm px-5 rounded-full"
+                                 onClick={handleGenerateClick}
+                                 disabled={isSynthesizing || selectedFacts.size < 2}
+                             >
+
+################################################################################
+# FILE: apps/web/tests/e2e/synthesis-flow.spec.ts
+################################################################################
+
+@@ Line 64-98 (Test 1) @@
+   test('should generate synthesis and open OutputDrawer', async ({ page }) => {
+     // Select at least 2 facts (minimum for synthesis)
+     const factCards = page.locator('[data-testid="fact-card"]');
+     const firstFact = factCards.first();
+     const secondFact = factCards.nth(1);
+     
+     // Click selection buttons to select facts
+     await firstFact.locator('[data-testid="fact-select-button"]').click();
+     await secondFact.locator('[data-testid="fact-select-button"]').click();
+     
+-    // Click Generate button (look for button with Sparkles icon or "Generate" text)
+-    const generateBtn = page.locator('button', { hasText: /Generate|Synthesize/ }).first();
++    // Click Generate button using stable selector
++    const generateBtn = page.locator('[data-testid="generate-synthesis"]');
++    await expect(generateBtn).toBeEnabled();
+     await generateBtn.click();
+     
+     // Wait for synthesis to complete (max 30s for LLM)
+-    // Look for OutputDrawer to open
+-    const outputDrawer = page.locator('[role="dialog"]').or(page.locator('[data-testid="output-drawer"]'));
++    // Look for OutputDrawer to open using stable selector
++    const outputDrawer = page.locator('[data-testid="output-drawer"]');
+     
+     try {
+       await outputDrawer.waitFor({ state: 'visible', timeout: 30000 });
+     } catch (error) {
+       console.error('❌ OutputDrawer did not open after Generate');
+       await page.screenshot({ path: 'test-failure-synthesis-no-drawer.png', fullPage: true });
+       throw error;
+     }
+     
+     // Assert drawer contains content
+     const drawerContent = outputDrawer.locator('pre, .prose').first();
+     await expect(drawerContent).toBeVisible();
+     
+     // Verify content is not empty
+     const contentText = await drawerContent.textContent();
+     expect(contentText).toBeTruthy();
+     expect(contentText!.length).toBeGreaterThan(50);
+   });
+
+@@ Line 100-146 (Test 2) @@
+   test('should show Last Output button after generation', async ({ page }) => {
+     // This test verifies the "Last Output" persistence feature
+     
+     // Step 1: Generate a synthesis (if none exists)
+-    const lastOutputBtn = page.locator('button', { hasText: /Last Output/i });
++    let lastOutputBtn = page.locator('button', { hasText: /Last Output/i });
+     const isDisabled = await lastOutputBtn.getAttribute('disabled');
+     
+     if (isDisabled === '' || isDisabled === 'disabled') {
+       // No outputs yet - generate one
+       const factCards = page.locator('[data-testid="fact-card"]');
+       await factCards.first().locator('[data-testid="fact-select-button"]').click();
+       await factCards.nth(1).locator('[data-testid="fact-select-button"]').click();
+       
+-      const generateBtn = page.locator('button', { hasText: /Generate|Synthesize/ }).first();
++      const generateBtn = page.locator('[data-testid="generate-synthesis"]');
++      await expect(generateBtn).toBeEnabled();
+       await generateBtn.click();
+       
+-      // Wait for drawer to open
+-      await page.waitForSelector('[role="dialog"]', { timeout: 30000 });
++      // Wait for drawer to open using stable selector
++      const outputDrawer = page.locator('[data-testid="output-drawer"]');
++      await outputDrawer.waitFor({ state: 'visible', timeout: 30000 });
+       
+-      // Close drawer
+-      const closeBtn = page.locator('button', { hasText: /Close|×/ }).first();
++      // Close drawer using stable selector
++      const closeBtn = page.locator('[data-testid="output-drawer-close"]');
+       await closeBtn.click();
+       
+-      // Wait for close animation
+-      await page.waitForTimeout(500);
++      // Assert drawer becomes hidden
++      await expect(outputDrawer).toBeHidden();
+     }
+     
+     // Step 2: Reload page
+     await page.reload();
+     await page.waitForSelector('[data-testid="fact-card"]', { timeout: 10000 });
+     
+-    // Step 3: Verify Last Output button is enabled
++    // Step 3: Recreate lastOutputBtn locator after reload
++    lastOutputBtn = page.locator('button', { hasText: /Last Output/i });
++    
++    // Verify Last Output button is enabled
+     await expect(lastOutputBtn).toBeEnabled();
+     
+     // Step 4: Click Last Output
+     await lastOutputBtn.click();
+     
+-    // Step 5: Verify drawer opens with content
+-    const outputDrawer = page.locator('[role="dialog"]');
++    // Step 5: Verify drawer opens with content using stable selector
++    const outputDrawer = page.locator('[data-testid="output-drawer"]');
+     await outputDrawer.waitFor({ state: 'visible', timeout: 5000 });
+     
+     const drawerContent = outputDrawer.locator('pre, .prose').first();
+     await expect(drawerContent).toBeVisible();
+     
+     const contentText = await drawerContent.textContent();
+     expect(contentText).toBeTruthy();
+   });
+
+@@ Line 148-167 (Test 3) @@
+   test('should handle synthesis errors gracefully', async ({ page }) => {
+     // This test verifies error handling (would need backend to simulate error)
+     // For now, just verify UI doesn't break when selecting facts
+     
+     const factCards = page.locator('[data-testid="fact-card"]');
+     await factCards.first().locator('[data-testid="fact-select-button"]').click();
+     
+-    // Verify Generate button is visible but disabled (need 2+ facts)
+-    const generateBtn = page.locator('button', { hasText: /Generate|Synthesize/ }).first();
++    // Verify Generate button is visible but disabled (need 2+ facts) using stable selector
++    const generateBtn = page.locator('[data-testid="generate-synthesis"]');
+     
+-    // Button should be disabled with only 1 fact selected
+-    const isDisabled = await generateBtn.isDisabled();
+-    expect(isDisabled).toBe(true);
++    // Button should be disabled with only 1 fact selected
++    await expect(generateBtn).toBeDisabled();
+     
+     // Select second fact
+     await factCards.nth(1).locator('[data-testid="fact-select-button"]').click();
+     
+     // Now button should be enabled
+     await expect(generateBtn).toBeEnabled();
+   });
+
+################################################################################
+# FILE: apps/backend/app/api/projects.py
+################################################################################
+
+@@ Line 242-254 @@
+ @router.post("/projects/{project_id}/synthesize")
+ def synthesize_project_facts(project_id: str, payload: SynthesisRequest, db: Session = Depends(get_session)):
+     """
+     Generate synthesis from selected facts.
+     
+     CANONICAL RESPONSE CONTRACT:
+     Success: {"synthesis": str, "output_id": str (UUID), "clusters": Optional[list]}
+     Error: Raises HTTPException with {detail: str, code?: str} and non-200 status
++    
++    E2E TEST MODE:
++    When ARTIFACT_E2E_MODE=true, returns deterministic synthesis without calling external LLM.
+     """
+     try:
+         fact_dicts = [f.dict() for f in payload.facts]
++        
++        # ✅ E2E TEST MODE: Return deterministic synthesis without LLM
++        import os
++        if os.environ.get("ARTIFACT_E2E_MODE", "").lower() == "true":
++            mode_templates = {
++                "paragraph": "Research Synthesis:\n\nThis is a deterministic test synthesis generated from {count} facts. {fact_summary}",
++                "outline": "Script Outline:\n\n1. Introduction\n2. Key Points ({count} facts)\n3. Conclusion\n\n{fact_summary}",
++                "brief": "Research Brief:\n\nExecutive Summary: Analysis of {count} research findings.\n\n{fact_summary}"
++            }
++            template = mode_templates.get(payload.mode, "Test synthesis from {count} facts.\n\n{fact_summary}")
++            fact_summary = "\n".join(f"- {f['text'][:100]}..." for f in fact_dicts[:3])
++            synthesis_text = template.format(count=len(fact_dicts), fact_summary=fact_summary)
++            result = {"synthesis": synthesis_text, "clusters": []}
++        else:
++            # Normal mode: Use LLM service
+-        from app.services.llm import synthesize_facts
+-        result = synthesize_facts(fact_dicts, payload.mode)
++            from app.services.llm import synthesize_facts
++            result = synthesize_facts(fact_dicts, payload.mode)
+
+################################################################################
+# FILE: .env.example
+################################################################################
+
+@@ Line 26-28 @@
+ # Testing
+ ARTIFACT_ENABLE_TEST_SEED=false  # Set to 'true' to enable test seed endpoints for E2E tests
++ARTIFACT_E2E_MODE=false  # Set to 'true' for deterministic synthesis (no LLM) in E2E tests
+
+################################################################################
+# SUMMARY
+################################################################################
+
+Files Modified: 5
+Lines Added: ~55
+Lines Removed: ~15
+Net Change: +40 lines
+
+New Test IDs:
+- data-testid="output-drawer"           (OutputDrawer root)
+- role="dialog"                          (OutputDrawer ARIA)
+- data-testid="output-drawer-close"     (OutputDrawer close button)
+- data-testid="generate-synthesis"      (Generate button)
+- data-testid="fact-select-button"      (Already existed ✅)
+
+Test Strategy: ✅ beforeAll seeding maintained (runs once per file)
+
+Backend E2E Mode:
+- Environment variable: ARTIFACT_E2E_MODE=true
+- Effect: Returns deterministic synthesis without LLM calls
+- Benefit: Tests run in 2-3s instead of 10-30s, 100% deterministic
+
+Key Improvements:
+1. All selectors now stable (no text/icon matching)
+2. Locators recreated after page reload (no stale references)
+3. Explicit assertions for hidden state
+4. Optional E2E mode for fast, deterministic testing
+5. Better test reliability (no LLM variability)
+
+################################################################################

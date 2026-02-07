@@ -1,0 +1,243 @@
+## E2E Synthesis Timeout Fixes - Patch Summary
+## Date: 2026-02-07
+## Fixes: OutputDrawer timeout issues in synthesis-flow.spec.ts
+
+################################################################################
+# ISSUE ANALYSIS
+################################################################################
+
+Problem: Tests timeout waiting for OutputDrawer after clicking Generate
+
+Root Causes:
+1. Mixed-source branch opens SynthesisBuilder instead of OutputDrawer
+2. Tests only waited for drawer, didn't handle builder flow
+3. No diagnostic info on failure (blind debugging)
+
+Solution:
+✅ Task A: executeSynthesis already opens drawer with fallback (Step #13)
+✅ Task B: Tests now handle builder flow
+✅ Task C: Comprehensive debugging (console, network, screenshots)
+
+################################################################################
+# FILE: apps/web/src/components/SynthesisBuilder.tsx
+################################################################################
+
+@@ Line 136-138 @@
+     return (
+         <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+-            <SheetContent className="w-[400px] sm:w-[600px] flex flex-col p-0 gap-0 shadow-2xl border-l border-stone-200 dark:border-stone-700 bg-white dark:bg-[#2A2A2A] z-[100]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
++            <SheetContent 
++                data-testid="synthesis-builder"
++                className="w-[400px] sm:w-[600px] flex flex-col p-0 gap-0 shadow-2xl border-l border-stone-200 dark:border-stone-700 bg-white dark:bg-[#2A2A2A] z-[100]" 
++                onPointerDownOutside={(e) => e.preventDefault()} 
++                onInteractOutside={(e) => e.preventDefault()}
++            >
+
+################################################################################
+# FILE: apps/web/tests/e2e/synthesis-flow.spec.ts
+################################################################################
+
+@@ Test 1: "should generate synthesis and open OutputDrawer" @@
+
++  test('should generate synthesis and open OutputDrawer', async ({ page }) => {
++    // Capture console logs and network for debugging
++    const consoleLogs: string[] = [];
++    const networkLogs: { url: string; status: number; response?: any }[] = [];
++    
++    page.on('console', msg => {
++      consoleLogs.push(`[${msg.type()}] ${msg.text()}`);
++    });
++    
++    page.on('response', async response => {
++      if (response.url().includes('/synthesize') || response.url().includes('/outputs/')) {
++        try {
++          const body = await response.json().catch(() => null);
++          networkLogs.push({
++            url: response.url(),
++            status: response.status(),
++            response: body
++          });
++        } catch (e) {
++          networkLogs.push({
++            url: response.url(),
++            status: response.status()
++          });
++        }
++      }
++    });
++    
+     // Select at least 2 facts (minimum for synthesis)
+     const factCards = page.locator('[data-testid="fact-card"]');
+     const firstFact = factCards.first();
+     const secondFact = factCards.nth(1);
+     
+     // Click selection buttons to select facts
+     await firstFact.locator('[data-testid="fact-select-button"]').click();
+     await secondFact.locator('[data-testid="fact-select-button"]').click();
+     
+     // Click Generate button using stable selector
+     const generateBtn = page.locator('[data-testid="generate-synthesis"]');
+     await expect(generateBtn).toBeEnabled();
+     await generateBtn.click();
+     
+-    // Wait for synthesis to complete (max 30s for LLM)
+-    // Look for OutputDrawer to open using stable selector
++    // Wait for either OutputDrawer, SynthesisBuilder, or error toast (max 10s initial check)
+     const outputDrawer = page.locator('[data-testid="output-drawer"]');
++    const synthesisBuilder = page.locator('[data-testid="synthesis-builder"]');
++    const errorToast = page.locator('[role="status"]', { hasText: /error|failed/i });
++    
++    let resultType: 'drawer' | 'builder' | 'error' | 'timeout' = 'timeout';
+     
+     try {
+-      await outputDrawer.waitFor({ state: 'visible', timeout: 30000 });
++      await Promise.race([
++        outputDrawer.waitFor({ state: 'visible', timeout: 10000 }).then(() => { resultType = 'drawer'; }),
++        synthesisBuilder.waitFor({ state: 'visible', timeout: 10000 }).then(() => { resultType = 'builder'; }),
++        errorToast.waitFor({ state: 'visible', timeout: 10000 }).then(() => { resultType = 'error'; })
++      ]);
+     } catch (error) {
+-      console.error('❌ OutputDrawer did not open after Generate');
+-      await page.screenshot({ path: 'test-failure-synthesis-no-drawer.png', fullPage: true });
+-      throw error;
++      // Timeout - dump debug info
++      console.error('❌ No result after clicking Generate within 10s');
++      console.error('Console logs:', consoleLogs);
++      console.error('Network logs:', networkLogs);
++      await page.screenshot({ path: 'test-failure-synthesis-timeout.png', fullPage: true });
++      const html = await page.content();
++      require('fs').writeFileSync('test-failure-synthesis-timeout.html', html);
++      throw new Error(`Generate click timed out. No drawer, builder, or error appeared. Console logs: ${consoleLogs.join('\n')}`);
++    }
++    
++    if (resultType === 'builder') {
++      // Mixed sources detected - click builder's generate button
++      console.log('ℹ️ SynthesisBuilder opened (mixed sources)');
++      const builderGenerateBtn = synthesisBuilder.locator('button', { hasText: /Generate|Create/i }).first();
++      await builderGenerateBtn.click();
++      
++      // Now wait for drawer
++      try {
++        await outputDrawer.waitFor({ state: 'visible', timeout: 30000 });
++      } catch (e) {
++        console.error('❌ OutputDrawer did not open after builder Generate');
++        console.error('Console logs:', consoleLogs);
++        console.error('Network logs:', networkLogs);
++        await page.screenshot({ path: 'test-failure-builder-no-drawer.png', fullPage: true });
++        throw e;
++      }
++    } else if (resultType === 'error') {
++      const errorText = await errorToast.textContent();
++      throw new Error(`Synthesis failed with error: ${errorText}. Network logs: ${JSON.stringify(networkLogs)}`);
+     }
+     
+-    // Assert drawer contains content
++    // Assert drawer is visible and contains content
++    await expect(outputDrawer).toBeVisible();
++    
+     const drawerContent = outputDrawer.locator('pre, .prose').first();
+     await expect(drawerContent).toBeVisible();
+     
+     // Verify content is not empty
+     const contentText = await drawerContent.textContent();
+     expect(contentText).toBeTruthy();
+     expect(contentText!.length).toBeGreaterThan(50);
+   });
+
+@@ Test 2: "should show Last Output button after generation" @@
+
+       const generateBtn = page.locator('[data-testid="generate-synthesis"]');
+       await expect(generateBtn).toBeEnabled();
+       await generateBtn.click();
+       
+-      // Wait for drawer to open using stable selector
++      // Wait for drawer or builder (handle mixed sources)
+       const outputDrawer = page.locator('[data-testid="output-drawer"]');
+-      await outputDrawer.waitFor({ state: 'visible', timeout: 30000 });
++      const synthesisBuilder = page.locator('[data-testid="synthesis-builder"]');
++      
++      try {
++        await Promise.race([
++          outputDrawer.waitFor({ state: 'visible', timeout: 10000 }),
++          synthesisBuilder.waitFor({ state: 'visible', timeout: 10000 })
++        ]);
++      } catch (e) {
++        console.error('❌ Neither drawer nor builder appeared');
++        throw e;
++      }
++      
++      // If builder appeared, click its generate button
++      if (await synthesisBuilder.isVisible()) {
++        const builderGenerateBtn = synthesisBuilder.locator('button', { hasText: /Generate|Create/i }).first();
++        await builderGenerateBtn.click();
++        await outputDrawer.waitFor({ state: 'visible', timeout: 30000 });
++      }
+       
+       // Close drawer using stable selector
+       const closeBtn = page.locator('[data-testid="output-drawer-close"]');
+
+################################################################################
+# SUMMARY
+################################################################################
+
+Files Modified: 2
+Lines Added: ~84
+Lines Removed: ~10
+Net Change: +74 lines
+
+New Test ID:
+- data-testid="synthesis-builder"    (SynthesisBuilder root)
+
+Key Improvements:
+1. Tests handle BOTH flows: direct drawer OR builder → drawer
+2. Console logs captured for debugging
+3. Network responses logged (synthesize + outputs endpoints)
+4. Screenshot + HTML dump on timeout
+5. Error toast detection
+6. Reduced timeout from 30s to 10s for faster failures
+
+Test Strategy: ✅ Maintained (beforeAll seeding, parallel workers supported)
+
+Diagnostics on Failure:
+✅ Console logs with synthesis response
+✅ Network logs with status codes + bodies
+✅ Full-page screenshot
+✅ Complete HTML snapshot
+✅ Clear error messages
+
+Parallel Workers: ✅ Tested with --workers=3
+
+Backend Changes: None (executeSynthesis already fixed in Step #13)
+
+################################################################################
+# TESTING COMMANDS
+################################################################################
+
+# Run tests with E2E mode (fast, deterministic)
+ARTIFACT_E2E_MODE=true docker-compose restart backend worker
+cd apps/web
+PLAYWRIGHT_SKIP_WEBSERVER=1 npx playwright test synthesis-flow.spec.ts --workers=3
+
+# Expected: 3/3 passing in ~8 seconds
+
+# Run tests with real LLM (production-like)
+ARTIFACT_E2E_MODE=false docker-compose restart backend worker
+cd apps/web
+PLAYWRIGHT_SKIP_WEBSERVER=1 npx playwright test synthesis-flow.spec.ts --workers=3
+
+# Expected: 3/3 passing in ~35 seconds
+
+################################################################################
+# DIAGNOSTIC ARTIFACTS (on failure)
+################################################################################
+
+Generated files:
+- test-failure-synthesis-timeout.png     (full-page screenshot)
+- test-failure-synthesis-timeout.html    (complete DOM)
+- test-failure-builder-no-drawer.png     (if builder flow fails)
+
+Console output includes:
+- Console logs: [...] 
+- Network logs: [{ url, status, response }]
+
+################################################################################

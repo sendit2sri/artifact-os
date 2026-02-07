@@ -1,0 +1,36 @@
+# Minimal requirements for E2E synthesis testing only
+# Use this if you can't install full requirements.txt (e.g., PyMuPDF build issues)
+# Usage: pip install -r requirements-e2e.txt
+
+# Core API
+fastapi
+uvicorn[standard]
+python-dotenv
+
+# Database
+sqlmodel
+asyncpg
+psycopg2-binary
+alembic
+
+# Settings & validation
+pydantic-settings
+
+# HTTP & file handling
+python-multipart
+httpx
+
+# For LLM calls (needed even in E2E mode for non-test paths)
+openai
+
+# Redis (optional for E2E but good to have)
+redis
+
+# Storage (optional for E2E)
+boto3
+
+# Celery is NOT needed for E2E synthesis tests
+# PyMuPDF is NOT needed for E2E synthesis tests (PDF ingestion only)
+# Playwright is NOT needed for E2E synthesis tests (web scraping only)
+# Firecrawl is NOT needed for E2E synthesis tests (web scraping only)
+# Trafilatura is NOT needed for E2E synthesis tests (content extraction only)

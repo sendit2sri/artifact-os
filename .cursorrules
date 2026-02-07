@@ -1,0 +1,52 @@
+# Project Context & Rules
+
+## Technical Stack
+- **Languages:** Python 3.10+, TypeScript (Frontend).
+- **Backend:** FastAPI, SQLAlchemy (PostgreSQL), Alembic migrations.
+- **Tools:** Docker, Syncthing (for sync-friendly folder structures), Obsidian (for documentation).
+
+## Context Management (Anti-Bloat)
+- **Conciseness:** Be brief. Avoid long explanations of code I didn't ask for.
+- **File Awareness:** Only read files explicitly mentioned or directly related to the task.
+- **No Refactoring:** Do not refactor code outside the immediate scope unless asked.
+- **Sync Safety:** Avoid creating deep, complex folder structures that might trigger Syncthing conflicts.
+
+## Python Coding Standards
+- Use type hints for all function signatures.
+- Prefer `pydantic` for data validation (match existing project schemas).
+- Ensure all API endpoints include proper error handling and status codes.
+
+## Agent Behavior
+- **Role:** Act as a Principal Software Architect.
+- **Strategy:** If a task is complex, outline the steps *before* writing code.
+- **Failures:** If you encounter a rate limit or "context full" error, warn me immediately and suggest starting a new chat.
+
+## Documentation
+- If I ask to document something, format it for **Obsidian** (Markdown with Wikilinks `[[Like This]]`).
+
+## Change Control
+- **No breaking changes:** Do not change API contracts, DB schemas, or response formats unless explicitly asked.
+- **Assumptions:** If key requirements are missing, ask 1 concise question or proceed with clearly stated assumptions.
+
+## File & Scope Boundaries
+- **Allowed reads:** You may read direct dependencies imported by the file being edited when necessary.
+- **Allowed writes:** Only modify files I mention + minimal additional files required for the same change (e.g., tests/migrations/docs). List all files you will touch before editing.
+
+## Backend Conventions (FastAPI/SQLAlchemy)
+- Do not mix async/sync DB patterns. Follow the existing project pattern.
+- Use the project’s DB session dependency and transaction conventions.
+- Any schema change requires an Alembic migration with upgrade/downgrade steps.
+
+## Quality Bar
+- New/changed endpoints must include: request/response schemas, correct status codes, and at least one test.
+- Do not add new dependencies unless asked; if unavoidable, explain why and keep it minimal.
+
+## Security Defaults
+- Never log secrets or sensitive data. Use env vars for secrets.
+- If new config is added, update `.env.example` and document it briefly.
+
+## Output Format
+- When delivering changes, include:
+  1) Files changed/added
+  2) Code (patch or per-file sections)
+  3) Commands to run (tests/migrations)
