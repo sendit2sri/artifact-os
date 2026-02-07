@@ -23,6 +23,7 @@
 
 ## Documentation
 - If I ask to document something, format it for **Obsidian** (Markdown with Wikilinks `[[Like This]]`).
+- **No root docs:** Any new documentation MUST be written under `docs/**` and SHOULD update `docs/_index.md`. Never create `.md` files in repo root except `README.md` and `QUICK_START.md`.
 
 ## Change Control
 - **No breaking changes:** Do not change API contracts, DB schemas, or response formats unless explicitly asked.
