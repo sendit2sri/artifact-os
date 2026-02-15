@@ -86,6 +86,7 @@ jobs:
         run: npm ci
 
       - name: Lint
+        working-directory: apps/web
         run: npm run lint
 
       - name: Typecheck
