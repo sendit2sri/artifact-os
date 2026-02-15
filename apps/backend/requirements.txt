@@ -21,3 +21,4 @@ beautifulsoup4
 bleach
 requests
 youtube-transcript-api
+pytest
