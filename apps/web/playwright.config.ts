@@ -52,7 +52,7 @@ export default defineConfig({
     ? {
         command: 'npx next dev -H 0.0.0.0 -p 3000',
         url: `${BASE_URL}/`,
-        reuseExistingServer: false,
+        reuseExistingServer: true,
         timeout: 120_000,
         env: {
           ...process.env,

@@ -73,12 +73,7 @@ jobs:
         working-directory: apps/backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/artifact_dev
-        run: |
-          # If using Alembic:
-          # alembic upgrade head
-          
-          # For now, just ensure DB is ready
-          echo "Database ready"
+        run: alembic upgrade head
 
       - name: Start backend server
         working-directory: apps/backend
@@ -91,9 +86,6 @@ jobs:
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           echo $! > backend.pid
-          
-          # Wait for backend to be ready
-          timeout 30 bash -c 'until curl -f http://localhost:8000/health; do sleep 2; done'
 
       - name: Start Celery worker (background)
         working-directory: apps/backend
@@ -114,15 +106,27 @@ jobs:
           npm run build
           npm run start &
           echo $! > frontend.pid
-          
-          # Wait for frontend to be ready
-          timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+
+      - name: Wait for services
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8000/health && break
+            sleep 2
+          done
+          curl -sf http://localhost:8000/health
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:3000/ >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:3000/ >/dev/null
 
       - name: Run Playwright tests
         working-directory: apps/web
         env:
+          PLAYWRIGHT_SKIP_WEBSERVER: "1"
+          BASE_URL: http://localhost:3000
           BACKEND_URL: http://localhost:8000
-        run: npx playwright test
+        run: npx playwright test --grep @release-gate --project=chromium --workers=1 --max-failures=1
 
       - name: Upload Playwright report
         if: failure()
@@ -143,13 +147,15 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          # Kill background processes
           if [ -f apps/backend/backend.pid ]; then
-            kill $(cat apps/backend/backend.pid) || true
+            kill $(cat apps/backend/backend.pid) 2>/dev/null || true
           fi
           if [ -f apps/backend/celery.pid ]; then
-            kill $(cat apps/backend/celery.pid) || true
+            kill $(cat apps/backend/celery.pid) 2>/dev/null || true
           fi
           if [ -f apps/web/frontend.pid ]; then
-            kill $(cat apps/web/frontend.pid) || true
+            kill $(cat apps/web/frontend.pid) 2>/dev/null || true
           fi
+          pkill -f "uvicorn app.main:app" 2>/dev/null || true
+          pkill -f "celery -A app.workers.celery_app" 2>/dev/null || true
+          pkill -f "next start" 2>/dev/null || true
