@@ -69,10 +69,6 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
-
     steps:
       - uses: actions/checkout@v4
 
@@ -83,18 +79,17 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Install
-        run: npm ci
+        run: cd apps/web && npm ci
 
       - name: Lint
-        working-directory: apps/web
-        run: npm run lint
+        run: cd apps/web && npm run lint
 
       - name: Typecheck
-        run: npm run typecheck
+        run: cd apps/web && npm run typecheck
 
       - name: Build (prod)
         env:
           NEXT_PUBLIC_API_URL: /api/v1
           NEXT_PUBLIC_E2E_MODE: "true"
           NEXT_PUBLIC_ENABLE_TEST_SEED: "true"
-        run: npm run build
+        run: cd apps/web && npm run build
