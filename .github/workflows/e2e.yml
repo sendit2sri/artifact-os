@@ -126,6 +126,8 @@ jobs:
           PLAYWRIGHT_SKIP_WEBSERVER: "1"
           BASE_URL: http://localhost:3000
           BACKEND_URL: http://localhost:8000
+          ARTIFACT_ENABLE_TEST_SEED: "true"
+          ARTIFACT_E2E_MODE: "true"
         run: npx playwright test --grep @release-gate --project=chromium --workers=1 --max-failures=1
 
       - name: Upload Playwright report
