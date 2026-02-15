@@ -5,14 +5,17 @@ import { Card } from "@/components/ui/card";
 import { FileText, Star, AlertCircle, CheckCircle2, Globe } from "lucide-react";
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 interface Props {
     facts: Fact[];
     jobs: Job[];
     projectId?: string;
+    /** Compact variant for empty state (smaller padding, reduced emphasis) */
+    compact?: boolean;
 }
 
-export function ProjectOverview({ facts, jobs, projectId }: Props) {
+export function ProjectOverview({ facts, jobs, projectId, compact = false }: Props) {
     const router = useRouter();
     
     const stats = useMemo(() => {
@@ -21,11 +24,11 @@ export function ProjectOverview({ facts, jobs, projectId }: Props) {
         const keyClaims = facts.filter(f => f.is_key_claim).length;
         // ✅ Updated: Include new "needs_review" status
         const needsReview = facts.filter(f => 
-            f.review_status === "pending" || 
-            f.review_status === "needs_review" || 
-            f.review_status === "flagged"
+            f.review_status === "PENDING" || 
+            f.review_status === "NEEDS_REVIEW" || 
+            f.review_status === "FLAGGED"
         ).length;
-        const approved = facts.filter(f => f.review_status === "approved").length;
+        const approved = facts.filter(f => f.review_status === "APPROVED").length;
 
         return { totalSources, totalFacts, keyClaims, needsReview, approved };
     }, [facts, jobs]);
@@ -36,9 +39,13 @@ export function ProjectOverview({ facts, jobs, projectId }: Props) {
         }
     };
 
+    const cardClass = compact
+        ? "px-4 py-3 bg-surface border-border hover:shadow-sm hover:border-border/80 transition-all"
+        : "p-4 bg-surface border-border hover:shadow-md hover:border-border/80 transition-shadow";
+
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="p-4 bg-surface border-border hover:shadow-md transition-shadow">
+        <div className={compact ? "grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-2xl" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"}>
+            <Card className={cn(cardClass)}>
                 <div className="flex items-start justify-between">
                     <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Sources</p>
@@ -50,7 +57,7 @@ export function ProjectOverview({ facts, jobs, projectId }: Props) {
                 </div>
             </Card>
 
-            <Card className="p-4 bg-surface border-border hover:shadow-md transition-shadow">
+            <Card className={cn(cardClass)}>
                 <div className="flex items-start justify-between">
                     <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Facts</p>
@@ -62,7 +69,7 @@ export function ProjectOverview({ facts, jobs, projectId }: Props) {
                 </div>
             </Card>
 
-            <Card className="p-4 bg-surface border-border hover:shadow-md transition-shadow">
+            <Card className={cn(cardClass)}>
                 <div className="flex items-start justify-between">
                     <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Key Claims</p>
@@ -75,7 +82,7 @@ export function ProjectOverview({ facts, jobs, projectId }: Props) {
             </Card>
 
             <Card 
-                className="p-4 bg-surface border-border hover:shadow-md transition-shadow cursor-pointer hover:ring-2 hover:ring-warning/30"
+                className={cn(cardClass, "cursor-pointer hover:ring-2 hover:ring-warning/30")}
                 onClick={() => handleFilterByStatus('needs_review')}
             >
                 <div className="flex items-start justify-between">

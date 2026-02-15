@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { Z } from "@/lib/tokens";
 import { toast } from "sonner";
 import { CheckCircle2, Flag, Star, X, ChevronLeft, AlertTriangle, Search, Keyboard } from "lucide-react";
 
@@ -49,7 +50,8 @@ export default function ReviewQueuePage({ params }: { params: Promise<{ id: stri
 
   // Filter facts by confidence and search
   const filteredFacts = useMemo(() => {
-    let list = facts ?? [];
+    const raw = facts ?? [];
+    let list = Array.isArray(raw) ? raw : (raw.items ?? []);
 
     // Confidence filter
     if (confidenceFilter !== "all") {
@@ -121,7 +123,7 @@ export default function ReviewQueuePage({ params }: { params: Promise<{ id: stri
     if (!currentFact) return;
     updateFactMutation.mutate({
       factId: currentFact.id,
-      updates: { review_status: "approved" }
+      updates: { review_status: "APPROVED" }
     });
     toast.success("Approved");
     // Move to next fact
@@ -143,7 +145,7 @@ export default function ReviewQueuePage({ params }: { params: Promise<{ id: stri
     if (!currentFact) return;
     updateFactMutation.mutate({
       factId: currentFact.id,
-      updates: { review_status: "flagged" }
+      updates: { review_status: "FLAGGED" }
     });
     toast.warning("Flagged for review");
     // Move to next fact
@@ -204,7 +206,7 @@ export default function ReviewQueuePage({ params }: { params: Promise<{ id: stri
   return (
     <div className="h-screen w-full bg-background flex flex-col">
       {/* Header */}
-      <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 shrink-0">
+      <header className={`h-16 bg-surface border-b border-border flex items-center justify-between px-6 shrink-0 relative ${Z.header}`}>
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -231,7 +233,7 @@ export default function ReviewQueuePage({ params }: { params: Promise<{ id: stri
 
       {/* Keyboard help overlay */}
       {showKeyboardHelp && (
-        <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div className={`absolute inset-0 bg-black/50 ${Z.overlay} flex items-center justify-center`}>
           <div className="bg-surface p-6 rounded-lg shadow-lg max-w-md">
             <h2 className="text-lg font-semibold mb-4">Keyboard Shortcuts</h2>
             <div className="space-y-2 text-sm">
@@ -350,7 +352,7 @@ export default function ReviewQueuePage({ params }: { params: Promise<{ id: stri
                     {fact.is_key_claim && (
                       <Star className="w-4 h-4 text-yellow-500 shrink-0" />
                     )}
-                    {fact.review_status === "flagged" && (
+                    {fact.review_status === "FLAGGED" && (
                       <Flag className="w-4 h-4 text-red-500 shrink-0" />
                     )}
                   </div>

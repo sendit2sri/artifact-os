@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Allow proxy/dev origins (fixes "Cross origin request detected from proxy to /_next/*")
+  allowedDevOrigins: [
+    'localhost',
+    '127.0.0.1',
+    'proxy',
+    'web',
+  ],
+
   // This routes /api requests to the Python backend when running 'npm run dev'
   async rewrites() {
     return [

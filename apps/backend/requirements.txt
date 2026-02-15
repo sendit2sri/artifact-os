@@ -19,3 +19,5 @@ trafilatura==1.6.0
 pymupdf==1.23.8
 beautifulsoup4
 bleach
+requests
+youtube-transcript-api

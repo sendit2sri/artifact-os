@@ -5,15 +5,22 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - web
       - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   backend:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
+      args:
+        INSTALL_PLAYWRIGHT: "true"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./apps/backend:/app
@@ -23,11 +30,18 @@ services:
     depends_on:
       - db
       - redis
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   worker:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
+      args:
+        INSTALL_PLAYWRIGHT: "true"
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
     volumes:
       - ./apps/backend:/app
@@ -40,6 +54,7 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
+      target: deps
     # ✅ Clean .next cache on start for fresh HMR state
     # ✅ Use default mode (Turbopack) but with polling for Docker stability
     command: sh -c "rm -rf .next && npm run dev -- -H 0.0.0.0 -p 3000"
@@ -48,10 +63,20 @@ services:
       - /app/node_modules
     expose:
       - "3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
     env_file: .env
     environment:
       # ✅ API routing
       - NEXT_PUBLIC_API_URL=/api/v1
+      # ✅ E2E harness (window.__e2e) for Playwright — required when PLAYWRIGHT_SKIP_WEBSERVER=1
+      - NEXT_PUBLIC_E2E_MODE=true
+      - NEXT_PUBLIC_ENABLE_TEST_SEED=true
+      - ARTIFACT_E2E_MODE=true
+      - ARTIFACT_ENABLE_TEST_SEED=true
       # ✅ File watching with polling (critical for Docker volume mounts)
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
@@ -78,5 +103,37 @@ services:
     ports:
       - "6379:6379"
 
+  # Run Playwright inside Docker (browsers pre-installed; hits proxy by service name)
+  # depends_on with condition: service_healthy eliminates host-side curl loop
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.58.2-jammy
+    working_dir: /work/apps/web
+    volumes:
+      - .:/work
+      - playwright_node_modules:/work/apps/web/node_modules
+      - npm_cache:/root/.npm
+      - pw_browsers:/ms-playwright
+    environment:
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - PLAYWRIGHT_SKIP_WEBSERVER=1
+      - BASE_URL=http://proxy
+      - BACKEND_URL=http://backend:8000
+      - ARTIFACT_ENABLE_TEST_SEED=true
+      - ARTIFACT_E2E_MODE=true
+    depends_on:
+      - proxy
+      - backend
+      - web
+    command: >
+      bash -lc '
+      npm ci &&
+      npx playwright install --with-deps &&
+      echo "✅ ready, running release-gate tests" &&
+      npx playwright test -c playwright.config.ts --grep @release-gate --project=chromium --workers=1 --max-failures=1
+      '
+
 volumes:
   postgres_data:
+  playwright_node_modules:
+  npm_cache:
+  pw_browsers:

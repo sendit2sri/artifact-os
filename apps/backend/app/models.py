@@ -33,6 +33,11 @@ class ReviewStatus(str, Enum):
     FLAGGED = "FLAGGED"            # User-marked issues
     REJECTED = "REJECTED"
 
+class SourceType(str, Enum):
+    WEB = "WEB"
+    REDDIT = "REDDIT"
+    YOUTUBE = "YOUTUBE"
+
 # --- Tables ---
 
 class Workspace(SQLModel, table=True):
@@ -66,6 +71,11 @@ class SourceDoc(SQLModel, table=True):
     domain: str
     title: Optional[str] = Field(default=None)
     
+    # Multi-source: type and normalized URL
+    source_type: SourceType = Field(default=SourceType.WEB)
+    canonical_url: Optional[str] = Field(default=None)
+    metadata_json: Optional[Dict[str, Any]] = Field(default=None, sa_type=JSON)
+    
     # Store full text (using Text type for large content)
     # Legacy field - kept for backward compatibility
     content_text: Optional[str] = Field(default=None, sa_type=Text)
@@ -95,12 +105,17 @@ class ResearchNode(SQLModel, table=True):
     # If extraction finds a fact but no direct quote, we still want to save it.
     quote_text_raw: Optional[str] = Field(default=None)
     quote_hash: Optional[str] = Field(default=None)
+    # Source excerpt (2–3 sentences) shown in Evidence panel; distinct from fact_text.
+    evidence_snippet: Optional[str] = Field(default=None, sa_type=Text)
     
     # Evidence offset anchors for precise highlighting
     evidence_start_char_raw: Optional[int] = Field(default=None)  # Offset in content_text_raw
     evidence_end_char_raw: Optional[int] = Field(default=None)    # Offset in content_text_raw
     evidence_start_char_md: Optional[int] = Field(default=None)   # Offset in content_markdown (if exists)
     evidence_end_char_md: Optional[int] = Field(default=None)     # Offset in content_markdown (if exists)
+    
+    # Per-fact source link (Reddit comment permalink, YouTube watch URL, etc.)
+    source_url: Optional[str] = Field(default=None)
     
     confidence_score: int = Field(default=0)
     
@@ -113,9 +128,13 @@ class ResearchNode(SQLModel, table=True):
 
     is_quarantined: bool = Field(default=False)
     review_status: ReviewStatus = Field(default=ReviewStatus.PENDING)
-    
+    is_pinned: bool = Field(default=False)
+    duplicate_group_id: Optional[uuid.UUID] = Field(default=None)
+    is_suppressed: bool = Field(default=False)
+    canonical_fact_id: Optional[uuid.UUID] = Field(default=None)
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     project: Project = Relationship(back_populates="nodes")
 
 class CanvasState(SQLModel, table=True):
@@ -152,6 +171,17 @@ class Job(SQLModel, table=True):
     
     project: Optional[Project] = Relationship(back_populates="jobs")
 
+class UserPreference(SQLModel, table=True):
+    """Server-backed user preferences per workspace/project (key-value JSON)."""
+    __tablename__ = "user_preferences"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    workspace_id: uuid.UUID = Field(foreign_key="workspaces.id", index=True)
+    project_id: Optional[uuid.UUID] = Field(default=None, foreign_key="projects.id", index=True)
+    key: str = Field(index=True)
+    value_json: Dict[str, Any] = Field(default_factory=dict, sa_type=JSON)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Output(SQLModel, table=True):
     """Stores synthesis/generation outputs for persistent access"""
     __tablename__ = "outputs"
@@ -169,6 +199,11 @@ class Output(SQLModel, table=True):
     # Track which facts were used
     fact_ids: List[str] = Field(default_factory=list, sa_type=JSON)
     source_count: int = Field(default=0)
+    
+    is_pinned: Optional[bool] = Field(default=False)
+    
+    # Quality stats: counts by review_status and pinned (computed at synthesis time)
+    quality_stats: Optional[Dict[str, Any]] = Field(default=None, sa_type=JSON)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

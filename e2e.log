@@ -1,0 +1,373 @@
+docker compose -f docker-compose.yml -f docker-compose.e2e.yml run --rm playwright
+ Container artifact-os-redis-1  Running
+ Container artifact-os-db-1  Running
+ Container artifact-os-backend-1  Running
+ Container artifact-os-web-1  Running
+ Container artifact-os-proxy-1  Running
+
+added 363 packages, and audited 364 packages in 2m
+
+132 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+npm notice
+npm notice New major version of npm available! 10.9.2 -> 11.10.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.10.0
+npm notice To update run: npm install -g npm@11.10.0
+npm notice
+Installing dependencies...
+Get:1 https://deb.nodesource.com/node_22.x nodistro InRelease [12.1 kB]
+Get:2 http://ports.ubuntu.com/ubuntu-ports jammy InRelease [270 kB]
+Get:3 https://deb.nodesource.com/node_22.x nodistro/main arm64 Packages [8869 B]
+Get:4 http://ports.ubuntu.com/ubuntu-ports jammy-updates InRelease [128 kB]
+Get:5 http://ports.ubuntu.com/ubuntu-ports jammy-backports InRelease [127 kB]
+Get:6 http://ports.ubuntu.com/ubuntu-ports jammy-security InRelease [129 kB]
+Get:7 http://ports.ubuntu.com/ubuntu-ports jammy/restricted arm64 Packages [24.2 kB]
+Get:8 http://ports.ubuntu.com/ubuntu-ports jammy/multiverse arm64 Packages [224 kB]
+Get:9 http://ports.ubuntu.com/ubuntu-ports jammy/main arm64 Packages [1758 kB]
+Get:10 http://ports.ubuntu.com/ubuntu-ports jammy/universe arm64 Packages [17.2 MB]
+Get:11 http://ports.ubuntu.com/ubuntu-ports jammy-updates/multiverse arm64 Packages [47.7 kB]
+Get:12 http://ports.ubuntu.com/ubuntu-ports jammy-updates/restricted arm64 Packages [6450 kB]
+Get:13 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe arm64 Packages [1651 kB]
+Get:14 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 Packages [3819 kB]
+Get:15 http://ports.ubuntu.com/ubuntu-ports jammy-backports/universe arm64 Packages [35.3 kB]
+Get:16 http://ports.ubuntu.com/ubuntu-ports jammy-backports/main arm64 Packages [83.5 kB]
+Get:17 http://ports.ubuntu.com/ubuntu-ports jammy-security/restricted arm64 Packages [6249 kB]
+Get:18 http://ports.ubuntu.com/ubuntu-ports jammy-security/multiverse arm64 Packages [41.2 kB]
+Get:19 http://ports.ubuntu.com/ubuntu-ports jammy-security/main arm64 Packages [3486 kB]
+Get:20 http://ports.ubuntu.com/ubuntu-ports jammy-security/universe arm64 Packages [1347 kB]
+Fetched 43.1 MB in 23s (1873 kB/s)
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+fonts-freefont-ttf is already the newest version (20120503-10build1).
+fonts-liberation is already the newest version (1:1.07.4-11).
+libasound2 is already the newest version (1.2.6.1-1ubuntu1).
+libatk-bridge2.0-0 is already the newest version (2.38.0-3).
+libatk1.0-0 is already the newest version (2.36.0-3build1).
+libatspi2.0-0 is already the newest version (2.44.0-3).
+libcairo-gobject2 is already the newest version (1.16.0-5ubuntu2).
+libcairo2 is already the newest version (1.16.0-5ubuntu2).
+libdbus-glib-1-2 is already the newest version (0.112-2build1).
+libegl1 is already the newest version (1.4.0-1).
+libenchant-2-2 is already the newest version (2.3.2-1ubuntu2).
+libepoxy0 is already the newest version (1.5.10-1).
+libevdev2 is already the newest version (1.12.1+dfsg-1).
+libevent-2.1-7 is already the newest version (2.1.12-stable-1build3).
+libfontconfig1 is already the newest version (2.13.1-4.2ubuntu5).
+libgles2 is already the newest version (1.4.0-1).
+libglx0 is already the newest version (1.4.0-1).
+libgudev-1.0-0 is already the newest version (1:237-2build1).
+libhyphen0 is already the newest version (2.8.8-7build2).
+libicu70 is already the newest version (70.1-2).
+libjpeg-turbo8 is already the newest version (2.1.2-0ubuntu1).
+liblcms2-2 is already the newest version (2.12~rc1-2build2).
+libmanette-0.2-0 is already the newest version (0.2.6-3build1).
+libopengl0 is already the newest version (1.4.0-1).
+libopus0 is already the newest version (1.3.1-0.1build2).
+libproxy1v5 is already the newest version (0.4.17-2).
+libsecret-1-0 is already the newest version (0.20.5-2).
+libwoff1 is already the newest version (1.0.2-1build4).
+libxcb-shm0 is already the newest version (1.14-3ubuntu3).
+libxcb1 is already the newest version (1.14-3ubuntu3).
+libxcomposite1 is already the newest version (1:0.4.5-1build2).
+libxcursor1 is already the newest version (1:1.2.0-2build4).
+libxdamage1 is already the newest version (1:1.1.5-2build2).
+libxext6 is already the newest version (2:1.3.4-1build1).
+libxfixes3 is already the newest version (1:6.0.0-1).
+libxi6 is already the newest version (2:1.8-1build1).
+libxkbcommon0 is already the newest version (1.4.0-1).
+libxrandr2 is already the newest version (2:1.5.2-1build1).
+libxrender1 is already the newest version (1:0.9.10-1build4).
+libxtst6 is already the newest version (2:1.2.3-1build4).
+xfonts-scalable is already the newest version (1:1.0.3-1.2ubuntu1).
+fonts-ipafont-gothic is already the newest version (00303-21ubuntu1).
+fonts-tlwg-loma-otf is already the newest version (1:0.7.3-1).
+fonts-unifont is already the newest version (1:14.0.01-1).
+fonts-wqy-zenhei is already the newest version (0.9.45-8).
+libavif13 is already the newest version (0.9.3-3).
+libffi7 is already the newest version (3.3-5ubuntu1).
+libx264-163 is already the newest version (2:0.163.3060+git5db6aa6-2build1).
+xfonts-cyrillic is already the newest version (1:1.0.5).
+libdbus-1-3 is already the newest version (1.12.20-2ubuntu4.1).
+libdrm2 is already the newest version (2.4.113-2~ubuntu0.22.04.1).
+libgbm1 is already the newest version (23.2.1-1ubuntu3.1~22.04.3).
+libgstreamer1.0-0 is already the newest version (1.20.3-0ubuntu1.1).
+libgtk-3-0 is already the newest version (3.24.33-1ubuntu2.2).
+libgtk-4-1 is already the newest version (4.6.9+ds-0ubuntu0.22.04.2).
+libnotify4 is already the newest version (0.7.9-3ubuntu5.22.04.1).
+libnspr4 is already the newest version (2:4.35-0ubuntu0.22.04.1).
+libnss3 is already the newest version (2:3.98-0ubuntu0.22.04.2).
+libpango-1.0-0 is already the newest version (1.50.6+ds-2ubuntu1).
+libpangocairo-1.0-0 is already the newest version (1.50.6+ds-2ubuntu1).
+libwayland-client0 is already the newest version (1.20.0-1ubuntu0.1).
+libwayland-egl1 is already the newest version (1.20.0-1ubuntu0.1).
+libwayland-server0 is already the newest version (1.20.0-1ubuntu0.1).
+libwebpdemux2 is already the newest version (1.2.2-2ubuntu0.22.04.2).
+libx11-6 is already the newest version (2:1.7.5-1ubuntu0.3).
+libx11-xcb1 is already the newest version (2:1.7.5-1ubuntu0.3).
+ffmpeg is already the newest version (7:4.4.2-0ubuntu0.22.04.1).
+gstreamer1.0-libav is already the newest version (1.20.3-0ubuntu1).
+gstreamer1.0-plugins-bad is already the newest version (1.20.3-0ubuntu1.1).
+libsoup-3.0-0 is already the newest version (3.0.7-0ubuntu1).
+The following additional packages will be installed:
+  gcc-12-base libgcc-s1 libgdk-pixbuf2.0-common libgfortran5 libgomp1
+  libgstreamer-plugins-good1.0-0 libstdc++6 xserver-common
+Suggested packages:
+  gvfs cups-common libvisual-0.4-plugins
+Recommended packages:
+  gstreamer1.0-x libgdk-pixbuf2.0-bin libglib2.0-data xdg-user-dirs
+  gstreamer1.0-gl xfonts-base
+The following packages will be upgraded:
+  fonts-noto-color-emoji gcc-12-base gstreamer1.0-plugins-base
+  gstreamer1.0-plugins-good libatomic1 libcups2 libfreetype6 libgcc-s1
+  libgdk-pixbuf-2.0-0 libgdk-pixbuf2.0-common libgfortran5 libglib2.0-0
+  libgomp1 libgstreamer-gl1.0-0 libgstreamer-plugins-base1.0-0
+  libgstreamer-plugins-good1.0-0 libharfbuzz-icu0 libharfbuzz0b libopenjp2-7
+  libpng16-16 libstdc++6 libxml2 libxslt1.1 xserver-common xvfb
+25 upgraded, 0 newly installed, 0 to remove and 77 not upgraded.
+Need to get 19.6 MB of archives.
+After this operation, 211 kB of additional disk space will be used.
+Get:1 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libatomic1 arm64 12.3.0-1ubuntu1~22.04.2 [10.8 kB]
+Get:2 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 gcc-12-base arm64 12.3.0-1ubuntu1~22.04.2 [20.6 kB]
+Get:3 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libstdc++6 arm64 12.3.0-1ubuntu1~22.04.2 [661 kB]
+Get:4 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libgomp1 arm64 12.3.0-1ubuntu1~22.04.2 [124 kB]
+Get:5 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libgfortran5 arm64 12.3.0-1ubuntu1~22.04.2 [417 kB]
+Get:6 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libgcc-s1 arm64 12.3.0-1ubuntu1~22.04.2 [39.7 kB]
+Get:7 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libglib2.0-0 arm64 2.72.4-0ubuntu2.9 [1435 kB]
+Get:8 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libxml2 arm64 2.9.13+dfsg-1ubuntu0.11 [730 kB]
+Get:9 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libpng16-16 arm64 1.6.37-3ubuntu0.4 [190 kB]
+Get:10 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 fonts-noto-color-emoji all 2.047-0ubuntu0.22.04.1 [10.0 MB]
+Get:11 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libgstreamer-plugins-base1.0-0 arm64 1.20.1-1ubuntu0.5 [793 kB]
+Get:12 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 gstreamer1.0-plugins-base arm64 1.20.1-1ubuntu0.5 [656 kB]
+Get:13 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libgdk-pixbuf2.0-common all 2.42.8+dfsg-1ubuntu0.4 [5546 B]
+Get:14 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libgdk-pixbuf-2.0-0 arm64 2.42.8+dfsg-1ubuntu0.4 [143 kB]
+Get:15 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 gstreamer1.0-plugins-good arm64 1.20.3-0ubuntu1.4 [1868 kB]
+Get:16 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libgstreamer-plugins-good1.0-0 arm64 1.20.3-0ubuntu1.4 [28.9 kB]
+Get:17 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libcups2 arm64 2.4.1op1-1ubuntu4.16 [265 kB]
+Get:18 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libfreetype6 arm64 2.11.1+dfsg-1ubuntu0.3 [382 kB]
+Get:19 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libgstreamer-gl1.0-0 arm64 1.20.1-1ubuntu0.5 [192 kB]
+Get:20 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libharfbuzz0b arm64 2.7.4-1ubuntu3.2 [353 kB]
+Get:21 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libharfbuzz-icu0 arm64 2.7.4-1ubuntu3.2 [5818 B]
+Get:22 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libxslt1.1 arm64 1.1.34-4ubuntu0.22.04.5 [162 kB]
+Get:23 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 xserver-common all 2:21.1.4-2ubuntu1.7~22.04.16 [29.5 kB]
+Get:24 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe arm64 xvfb arm64 2:21.1.4-2ubuntu1.7~22.04.16 [858 kB]
+Get:25 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libopenjp2-7 arm64 2.4.0-6ubuntu0.4 [155 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 19.6 MB in 10s (1917 kB/s)
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 35020 files and directories currently installed.)
+Preparing to unpack .../libatomic1_12.3.0-1ubuntu1~22.04.2_arm64.deb ...
+Unpacking libatomic1:arm64 (12.3.0-1ubuntu1~22.04.2) over (12.3.0-1ubuntu1~22.04) ...
+Preparing to unpack .../gcc-12-base_12.3.0-1ubuntu1~22.04.2_arm64.deb ...
+Unpacking gcc-12-base:arm64 (12.3.0-1ubuntu1~22.04.2) over (12.3.0-1ubuntu1~22.04) ...
+Setting up gcc-12-base:arm64 (12.3.0-1ubuntu1~22.04.2) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 35020 files and directories currently installed.)
+Preparing to unpack .../libstdc++6_12.3.0-1ubuntu1~22.04.2_arm64.deb ...
+Unpacking libstdc++6:arm64 (12.3.0-1ubuntu1~22.04.2) over (12.3.0-1ubuntu1~22.04) ...
+Setting up libstdc++6:arm64 (12.3.0-1ubuntu1~22.04.2) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 35020 files and directories currently installed.)
+Preparing to unpack .../libgomp1_12.3.0-1ubuntu1~22.04.2_arm64.deb ...
+Unpacking libgomp1:arm64 (12.3.0-1ubuntu1~22.04.2) over (12.3.0-1ubuntu1~22.04) ...
+Preparing to unpack .../libgfortran5_12.3.0-1ubuntu1~22.04.2_arm64.deb ...
+Unpacking libgfortran5:arm64 (12.3.0-1ubuntu1~22.04.2) over (12.3.0-1ubuntu1~22.04) ...
+Preparing to unpack .../libgcc-s1_12.3.0-1ubuntu1~22.04.2_arm64.deb ...
+Unpacking libgcc-s1:arm64 (12.3.0-1ubuntu1~22.04.2) over (12.3.0-1ubuntu1~22.04) ...
+Setting up libgcc-s1:arm64 (12.3.0-1ubuntu1~22.04.2) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 35020 files and directories currently installed.)
+Preparing to unpack .../00-libglib2.0-0_2.72.4-0ubuntu2.9_arm64.deb ...
+Unpacking libglib2.0-0:arm64 (2.72.4-0ubuntu2.9) over (2.72.4-0ubuntu2.4) ...
+Preparing to unpack .../01-libxml2_2.9.13+dfsg-1ubuntu0.11_arm64.deb ...
+Unpacking libxml2:arm64 (2.9.13+dfsg-1ubuntu0.11) over (2.9.13+dfsg-1ubuntu0.4) ...
+Preparing to unpack .../02-libpng16-16_1.6.37-3ubuntu0.4_arm64.deb ...
+Unpacking libpng16-16:arm64 (1.6.37-3ubuntu0.4) over (1.6.37-3build5) ...
+Preparing to unpack .../03-fonts-noto-color-emoji_2.047-0ubuntu0.22.04.1_all.deb ...
+Unpacking fonts-noto-color-emoji (2.047-0ubuntu0.22.04.1) over (2.042-0ubuntu0.22.04.1) ...
+Preparing to unpack .../04-libgstreamer-plugins-base1.0-0_1.20.1-1ubuntu0.5_arm64.deb ...
+Unpacking libgstreamer-plugins-base1.0-0:arm64 (1.20.1-1ubuntu0.5) over (1.20.1-1ubuntu0.4) ...
+Preparing to unpack .../05-gstreamer1.0-plugins-base_1.20.1-1ubuntu0.5_arm64.deb ...
+Unpacking gstreamer1.0-plugins-base:arm64 (1.20.1-1ubuntu0.5) over (1.20.1-1ubuntu0.4) ...
+Preparing to unpack .../06-libgdk-pixbuf2.0-common_2.42.8+dfsg-1ubuntu0.4_all.deb ...
+Unpacking libgdk-pixbuf2.0-common (2.42.8+dfsg-1ubuntu0.4) over (2.42.8+dfsg-1ubuntu0.3) ...
+Preparing to unpack .../07-libgdk-pixbuf-2.0-0_2.42.8+dfsg-1ubuntu0.4_arm64.deb ...
+Unpacking libgdk-pixbuf-2.0-0:arm64 (2.42.8+dfsg-1ubuntu0.4) over (2.42.8+dfsg-1ubuntu0.3) ...
+Preparing to unpack .../08-gstreamer1.0-plugins-good_1.20.3-0ubuntu1.4_arm64.deb ...
+Unpacking gstreamer1.0-plugins-good:arm64 (1.20.3-0ubuntu1.4) over (1.20.3-0ubuntu1.3) ...
+Preparing to unpack .../09-libgstreamer-plugins-good1.0-0_1.20.3-0ubuntu1.4_arm64.deb ...
+Unpacking libgstreamer-plugins-good1.0-0:arm64 (1.20.3-0ubuntu1.4) over (1.20.3-0ubuntu1.3) ...
+Preparing to unpack .../10-libcups2_2.4.1op1-1ubuntu4.16_arm64.deb ...
+Unpacking libcups2:arm64 (2.4.1op1-1ubuntu4.16) over (2.4.1op1-1ubuntu4.11) ...
+Preparing to unpack .../11-libfreetype6_2.11.1+dfsg-1ubuntu0.3_arm64.deb ...
+Unpacking libfreetype6:arm64 (2.11.1+dfsg-1ubuntu0.3) over (2.11.1+dfsg-1ubuntu0.2) ...
+Preparing to unpack .../12-libgstreamer-gl1.0-0_1.20.1-1ubuntu0.5_arm64.deb ...
+Unpacking libgstreamer-gl1.0-0:arm64 (1.20.1-1ubuntu0.5) over (1.20.1-1ubuntu0.4) ...
+Preparing to unpack .../13-libharfbuzz0b_2.7.4-1ubuntu3.2_arm64.deb ...
+Unpacking libharfbuzz0b:arm64 (2.7.4-1ubuntu3.2) over (2.7.4-1ubuntu3.1) ...
+Preparing to unpack .../14-libharfbuzz-icu0_2.7.4-1ubuntu3.2_arm64.deb ...
+Unpacking libharfbuzz-icu0:arm64 (2.7.4-1ubuntu3.2) over (2.7.4-1ubuntu3.1) ...
+Preparing to unpack .../15-libxslt1.1_1.1.34-4ubuntu0.22.04.5_arm64.deb ...
+Unpacking libxslt1.1:arm64 (1.1.34-4ubuntu0.22.04.5) over (1.1.34-4ubuntu0.22.04.1) ...
+Preparing to unpack .../16-xserver-common_2%3a21.1.4-2ubuntu1.7~22.04.16_all.deb ...
+Unpacking xserver-common (2:21.1.4-2ubuntu1.7~22.04.16) over (2:21.1.4-2ubuntu1.7~22.04.12) ...
+Preparing to unpack .../17-xvfb_2%3a21.1.4-2ubuntu1.7~22.04.16_arm64.deb ...
+Unpacking xvfb (2:21.1.4-2ubuntu1.7~22.04.16) over (2:21.1.4-2ubuntu1.7~22.04.12) ...
+Preparing to unpack .../18-libopenjp2-7_2.4.0-6ubuntu0.4_arm64.deb ...
+Unpacking libopenjp2-7:arm64 (2.4.0-6ubuntu0.4) over (2.4.0-6ubuntu0.3) ...
+Setting up fonts-noto-color-emoji (2.047-0ubuntu0.22.04.1) ...
+Setting up libglib2.0-0:arm64 (2.72.4-0ubuntu2.9) ...
+Setting up libgdk-pixbuf2.0-common (2.42.8+dfsg-1ubuntu0.4) ...
+Setting up libgstreamer-plugins-base1.0-0:arm64 (1.20.1-1ubuntu0.5) ...
+Setting up libgomp1:arm64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up libgstreamer-plugins-good1.0-0:arm64 (1.20.3-0ubuntu1.4) ...
+Setting up libgstreamer-gl1.0-0:arm64 (1.20.1-1ubuntu0.5) ...
+Setting up gstreamer1.0-plugins-base:arm64 (1.20.1-1ubuntu0.5) ...
+Setting up libpng16-16:arm64 (1.6.37-3ubuntu0.4) ...
+Setting up libatomic1:arm64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up libgfortran5:arm64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up libcups2:arm64 (2.4.1op1-1ubuntu4.16) ...
+Setting up libopenjp2-7:arm64 (2.4.0-6ubuntu0.4) ...
+Setting up libgdk-pixbuf-2.0-0:arm64 (2.42.8+dfsg-1ubuntu0.4) ...
+Setting up xserver-common (2:21.1.4-2ubuntu1.7~22.04.16) ...
+Setting up libxml2:arm64 (2.9.13+dfsg-1ubuntu0.11) ...
+Setting up gstreamer1.0-plugins-good:arm64 (1.20.3-0ubuntu1.4) ...
+Setting up xvfb (2:21.1.4-2ubuntu1.7~22.04.16) ...
+Setting up libfreetype6:arm64 (2.11.1+dfsg-1ubuntu0.3) ...
+Setting up libxslt1.1:arm64 (1.1.34-4ubuntu0.22.04.5) ...
+Setting up libharfbuzz0b:arm64 (2.7.4-1ubuntu3.2) ...
+Setting up libharfbuzz-icu0:arm64 (2.7.4-1ubuntu3.2) ...
+Processing triggers for fontconfig (2.13.1-4.2ubuntu5) ...
+Processing triggers for libc-bin (2.35-0ubuntu3.8) ...
+Removing unused browser at /ms-playwright/chromium-1155
+Removing unused browser at /ms-playwright/chromium_headless_shell-1155
+Removing unused browser at /ms-playwright/firefox-1471
+Removing unused browser at /ms-playwright/webkit-2123
+Downloading Chrome for Testing 145.0.7632.6 (playwright chromium v1208) from https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1208/chromium-linux-arm64.zip
+|                                                                                |   0% of 179.6 MiB
+|■■■■■■■■                                                                        |  10% of 179.6 MiB
+|■■■■■■■■■■■■■■■■                                                                |  20% of 179.6 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 179.6 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 179.6 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 179.6 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 179.6 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 179.6 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 179.6 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 179.6 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 179.6 MiB
+Chrome for Testing 145.0.7632.6 (playwright chromium v1208) downloaded to /ms-playwright/chromium-1208
+Downloading Chrome Headless Shell 145.0.7632.6 (playwright chromium-headless-shell v1208) from https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1208/chromium-headless-shell-linux-arm64.zip
+|                                                                                |   0% of 106.4 MiB
+|■■■■■■■■                                                                        |  10% of 106.4 MiB
+|■■■■■■■■■■■■■■■■                                                                |  20% of 106.4 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 106.4 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 106.4 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 106.4 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 106.4 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 106.4 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 106.4 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 106.4 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 106.4 MiB
+Chrome Headless Shell 145.0.7632.6 (playwright chromium-headless-shell v1208) downloaded to /ms-playwright/chromium_headless_shell-1208
+Downloading Firefox 146.0.1 (playwright firefox v1509) from https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1509/firefox-ubuntu-22.04-arm64.zip
+|                                                                                |   0% of 91 MiB
+|■■■■■■■■                                                                        |  10% of 91 MiB
+|■■■■■■■■■■■■■■■■                                                                |  20% of 91 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 91 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 91 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 91 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 91 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 91 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 91 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 91 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 91 MiB
+Firefox 146.0.1 (playwright firefox v1509) downloaded to /ms-playwright/firefox-1509
+Downloading WebKit 26.0 (playwright webkit v2248) from https://cdn.playwright.dev/dbazure/download/playwright/builds/webkit/2248/webkit-ubuntu-22.04-arm64.zip
+|                                                                                |   0% of 92.5 MiB
+|■■■■■■■■                                                                        |  10% of 92.5 MiB
+|■■■■■■■■■■■■■■■■                                                                |  20% of 92.5 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 92.5 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 92.5 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 92.5 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 92.5 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 92.5 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 92.5 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 92.5 MiB
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 92.5 MiB
+WebKit 26.0 (playwright webkit v2248) downloaded to /ms-playwright/webkit-2248
+⏳ waiting for backend...
+✅ ready, running smoke tests
+🔧 E2E Global Setup
+
+   BASE_URL:    http://proxy
+   BACKEND_URL: http://backend:8000
+   SKIP_WEBSERVER: true
+
+0️⃣  Validating E2E environment (fail-fast)...
+   ⚠️  With PLAYWRIGHT_SKIP_WEBSERVER=1, set NEXT_PUBLIC_E2E_MODE=true on your dev server for __e2e harness
+
+   ✅ E2E env vars OK
+
+0️⃣  Checking frontend availability...
+   ✅ Frontend is running
+
+1️⃣  Checking backend health...
+   ✅ Backend is running
+
+2️⃣  Checking test seed endpoint...
+   ✅ Seed OK (project=7d3e13ff..., facts=14)
+
+   ✅ Outputs API OK (2 seeded)
+
+3️⃣  Validating E2E mode (deterministic synthesis)...
+   ✅ E2E mode confirmed
+
+✅ Backend ready for E2E tests
+
+
+Running 17 tests using 1 worker
+
+✅ Seed verified: 10 facts (7 approved, 2 pinned, 6 with evidence)
+  ✓   1 [chromium] › tests/e2e/canary.spec.ts:16:7 › Canary - Critical Path @smoke › Overlay layering canary: sheet above header, click inside succeeds (1.3s)
+  ✓   2 [chromium] › tests/e2e/canary.spec.ts:73:7 › Canary - Critical Path @smoke › Prefs hydration canary: sort/group defaults from server (1.6s)
+  ✓   3 [chromium] › tests/e2e/canary.spec.ts:111:7 › Canary - Critical Path @smoke › Watchdog canary: warning then stuck then dismiss (1.0s)
+  ✓   4 [chromium] › tests/e2e/canary.spec.ts:186:7 › Canary - Critical Path @smoke › URL loop canary: rapid toggles, no infinite replace (2.7s)
+  ✓   5 [chromium] › tests/e2e/capture-excerpt.spec.ts:20:7 › Capture Excerpt @smoke › capture excerpt via start/end inputs, assert snippet and highlight (1.0s)
+  -   6 [chromium] › tests/e2e/evidence-copy.spec.ts:16:7 › Evidence Copy @smoke › open evidence, click copy snippet, clipboard contains snippet
+  ✓   7 [chromium] › tests/e2e/export-quick-actions.spec.ts:15:7 › Export Quick Actions @smoke › open export panel, assert last output quick button enabled, click triggers download (1.8s)
+  ✘   8 [chromium] › tests/e2e/seed-contract.spec.ts:17:7 › Seed Contract (Canary Test) @smoke › seed contract: kitchen sink produces required invariants (122ms)
+Testing stopped early after 1 maximum allowed failures.
+
+
+  1) [chromium] › tests/e2e/seed-contract.spec.ts:17:7 › Seed Contract (Canary Test) @smoke › seed contract: kitchen sink produces required invariants 
+
+    Error: seed_verification object missing
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeTruthy[2m()[22m
+
+    Received: [31mundefined[39m
+
+      22 |     // 2. Verify seed_verification object (server-side assertions)
+      23 |     const verification = seed.seed_verification;
+    > 24 |     expect(verification, 'seed_verification object missing').toBeTruthy();
+         |                                                              ^
+      25 |     expect(verification.actual_facts, 'No facts created by seed').toBeGreaterThanOrEqual(8);
+      26 |     expect(verification.expected_facts, 'Expected facts mismatch').toBeGreaterThanOrEqual(8);
+      27 |     expect(verification.has_approved, 'Seed must have >= 2 approved facts').toBe(true);
+        at /work/apps/web/tests/e2e/seed-contract.spec.ts:24:62
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/seed-contract-Seed-Contrac-f3e95-roduces-required-invariants-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/seed-contract-Seed-Contrac-f3e95-roduces-required-invariants-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/e2e/seed-contract.spec.ts:17:7 › Seed Contract (Canary Test) @smoke › seed contract: kitchen sink produces required invariants 
+  1 skipped
+  9 did not run
+  6 passed (12.8s)
+  1 error was not a part of any test, see above for details
+exit status 1
+make: *** [e2e-run] Error 1

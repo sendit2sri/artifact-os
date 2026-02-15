@@ -1,0 +1,12 @@
+#!/bin/sh
+# Optional: run docs lint + E2E URL guard.
+# Enable: git config core.hooksPath .githooks
+
+ROOT=$(git rev-parse --show-toplevel)
+[ -n "$ROOT" ] || exit 0
+cd "$ROOT"
+
+[ -x "scripts/check-no-root-md.sh" ] && bash scripts/check-no-root-md.sh
+[ -x "scripts/check-e2e-no-absolute-urls.sh" ] && bash scripts/check-e2e-no-absolute-urls.sh
+
+exit 0

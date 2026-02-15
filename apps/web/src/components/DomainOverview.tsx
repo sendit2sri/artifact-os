@@ -23,7 +23,7 @@ export function DomainOverview({ domain, domainJobs, domainFacts, onSelectPage }
             totalFacts: domainFacts.length,
             keyClaims: domainFacts.filter(f => f.is_key_claim).length,
             verified: domainFacts.filter(f => f.confidence_score > 80).length,
-            needsReview: domainFacts.filter(f => f.review_status === "pending" || f.review_status === "flagged").length,
+            needsReview: domainFacts.filter(f => f.review_status === "PENDING" || f.review_status === "FLAGGED").length,
             lastIngested: domainJobs.length > 0
                 ? domainJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at
                 : null
@@ -63,7 +63,7 @@ export function DomainOverview({ domain, domainJobs, domainFacts, onSelectPage }
                 <div className="divide-y divide-stone-100 dark:divide-stone-800">
                     {domainJobs.map(job => {
                         const pageFacts = domainFacts.filter(f => f.source_url === job.params.url);
-                        const pendingCount = pageFacts.filter(f => f.review_status === "pending").length;
+                        const pendingCount = pageFacts.filter(f => f.review_status === "PENDING").length;
                         const title = job.result_summary?.source_title || job.params.url;
 
                         return (

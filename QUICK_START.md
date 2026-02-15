@@ -13,7 +13,7 @@ cp .env.example .env  # Add your OPENAI_API_KEY
 make dev-proxy
 ```
 
-**Open:** http://localhost
+**Open:** http://localhost:8080
 
 ---
 
@@ -26,7 +26,7 @@ make dev-proxy
 - ✅ Hot reload for frontend
 - ✅ No CORS issues
 - ✅ Matches production exactly
-- **Open:** http://localhost
+- **Open:** http://localhost:8080
 
 ### Option 2: Frontend-Only Development
 ```bash
@@ -41,7 +41,7 @@ make dev
 make prod
 ```
 - ✅ Full production stack
-- **Open:** http://localhost
+- **Open:** http://localhost:8080
 
 ---
 
@@ -65,7 +65,7 @@ make db-up                    # Apply migrations
 ### "CORS error in browser"
 ```bash
 # You're probably using http://localhost:3000
-# Solution: Use http://localhost instead
+# Solution: Use http://localhost:8080 instead
 make down
 make dev-proxy
 ```
@@ -86,13 +86,24 @@ make down
 make dev-proxy
 ```
 
+### "Processing stuck on Queued" (URL added but never moves to Fetching)
+The Celery worker must be running to process ingested URLs.
+
+```bash
+# Ensure full stack (backend + worker + Redis + DB) is running
+make down
+make dev-proxy   # or: make dev   (both include the worker)
+```
+
+If using `npm run dev` in `apps/web` only, the worker is not running. Use `make dev` or `make dev-proxy` instead.
+
 ---
 
 ## Port Reference
 
 | URL | Service |
 |-----|---------|
-| http://localhost | Main app (via Nginx) |
+| http://localhost:8080 | Main app (via Nginx) |
 | http://localhost:3000 | Frontend (dev mode only) |
 | http://localhost:8000 | Backend API (direct) |
 

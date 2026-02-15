@@ -188,6 +188,8 @@ def synthesize_facts(facts: list[dict], mode: str = "paragraph") -> dict:
         system_prompt += " Output a structured video script outline."
     elif mode == "brief":
         system_prompt += " Output a formal research brief."
+    elif mode == "split":
+        system_prompt += " Output as separate sections. Use markdown heading '## Section N: Title' for each section (one section per semantic group)."
     else:
         system_prompt += " Output a coherent synthesis paragraph."
 

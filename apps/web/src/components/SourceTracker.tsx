@@ -15,6 +15,8 @@ interface SourceTrackerProps {
     projectId: string;
     activeFilter: { type: "DOMAIN" | "URL" | null; value: string | null };
     onSelect: (type: "DOMAIN" | "URL" | null, value: string | null) => void;
+    /** When set, the source row matching this canonical URL shows a pulse highlight (e.g. after duplicate ingest). */
+    highlightCanonicalUrl?: string | null;
 }
 
 const getDomain = (u: string) => {
@@ -22,7 +24,7 @@ const getDomain = (u: string) => {
     catch { return u; }
 };
 
-export function SourceTracker({ projectId, activeFilter, onSelect }: SourceTrackerProps) {
+export function SourceTracker({ projectId, activeFilter, onSelect, highlightCanonicalUrl }: SourceTrackerProps) {
     const queryClient = useQueryClient();
     const [expandedDomains, setExpandedDomains] = useState<Record<string, boolean>>({});
     const [searchQuery, setSearchQuery] = useState(""); // ✅ Local Search State
@@ -199,7 +201,7 @@ export function SourceTracker({ projectId, activeFilter, onSelect }: SourceTrack
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin scrollbar-thumb-stone-300 dark:scrollbar-thumb-stone-700 scrollbar-track-transparent">
+            <div data-testid="sources-list" className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin scrollbar-thumb-stone-300 dark:scrollbar-thumb-stone-700 scrollbar-track-transparent">
                 {Object.entries(groupedJobs).length === 0 && searchQuery && (
                     <div className="text-center py-12 text-sm text-stone-400 dark:text-stone-500">
                         No sources found.
@@ -207,7 +209,7 @@ export function SourceTracker({ projectId, activeFilter, onSelect }: SourceTrack
                 )}
 
                 {Object.entries(groupedJobs).length === 0 && !searchQuery && (
-                    <div className="text-center py-16">
+                    <div data-testid="sources-empty" className="text-center py-16">
                         <Globe className="w-10 h-10 text-stone-300 dark:text-stone-700 mx-auto mb-3" />
                         <p className="text-sm text-stone-500 dark:text-stone-400 font-medium">No sources yet</p>
                         <p className="text-xs text-stone-400 dark:text-stone-500 mt-1">Add a URL to get started</p>
@@ -276,13 +278,19 @@ export function SourceTracker({ projectId, activeFilter, onSelect }: SourceTrack
                                         const status = job.status;
                                         const isUrlSelected = activeFilter.type === "URL" && activeFilter.value === job.params.url;
                                         const isRenaming = renamingJobId === job.id;
+                                        const canonicalUrl = job.params?.canonical_url || job.params?.url || "";
+                                        const isHighlightPulse = Boolean(highlightCanonicalUrl && canonicalUrl && (canonicalUrl === highlightCanonicalUrl || job.params?.url === highlightCanonicalUrl));
 
                                         return (
                                             <div
                                                 key={job.id}
+                                                data-testid={isHighlightPulse ? "source-highlight-pulse" : "source-row"}
+                                                data-source-id={job.id}
+                                                data-canonical-url={canonicalUrl || undefined}
                                                 className={cn(
                                                     "flex items-center justify-between py-2 px-3 pl-8 group transition-colors",
                                                     isUrlSelected ? "bg-primary/10 ring-1 ring-inset ring-primary/20" : "hover:bg-surface-2",
+                                                    isHighlightPulse && "animate-pulse ring-1 ring-inset ring-primary/30",
                                                     !isRenaming && "cursor-pointer"
                                                 )}
                                                 onClick={(e) => {
@@ -312,19 +320,36 @@ export function SourceTracker({ projectId, activeFilter, onSelect }: SourceTrack
                                                                 )}
                                                             </div>
                                                         ) : (
-                                                            <p
-                                                                className={cn(
-                                                                    "text-sm truncate font-medium max-w-[160px]",
-                                                                    isUrlSelected ? "text-amber-700 dark:text-amber-400" : "text-stone-600 dark:text-stone-300"
-                                                                )}
-                                                                title={title}
-                                                                onDoubleClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleStartRename(job.id, title);
-                                                                }}
-                                                            >
-                                                                {title}
-                                                            </p>
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <p
+                                                                    className={cn(
+                                                                        "text-sm truncate font-medium max-w-[160px]",
+                                                                        isUrlSelected ? "text-amber-700 dark:text-amber-400" : "text-stone-600 dark:text-stone-300"
+                                                                    )}
+                                                                    title={title}
+                                                                    onDoubleClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleStartRename(job.id, title);
+                                                                    }}
+                                                                >
+                                                                    {title}
+                                                                </p>
+                                                                {(() => {
+                                                                    const st = job.result_summary?.source_type || job.params?.source_type;
+                                                                    if (!st || st === "WEB") return null;
+                                                                    const label = st === "REDDIT" ? "Reddit" : st === "YOUTUBE" ? "YouTube" : "Web";
+                                                                    return (
+                                                                        <Badge
+                                                                            variant="secondary"
+                                                                            className="h-4 px-1.5 text-[9px] shrink-0"
+                                                                            data-testid="source-type-badge"
+                                                                            data-source-type={st}
+                                                                        >
+                                                                            {label}
+                                                                        </Badge>
+                                                                    );
+                                                                })()}
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>

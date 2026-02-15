@@ -56,3 +56,14 @@ npm run dev:recovery   # Clears cache + uses webpack instead of Turbopack
 - **Random chunk errors**: `npm run dev:recovery`
 - **Turbopack issues**: `npm run dev:webpack`
 - **Need speed**: `npm run dev:turbo` (experimental)
+
+
+“Create/update Obsidian docs for the work we just finished. Use docs/**, link in docs/_index.md, no root .md, include ## Links section.”
+
+The process using port 3000 (node PID 15821) was force-killed with kill -9, and the port is now free.
+Start the dev server again:
+npm run dev -- --port 3000
+If port 3000 gets stuck again, use:
+9
+lsof -i :3000 -t | xargs kill -9
+kill -9 sends SIGKILL so the process cannot ignore it.

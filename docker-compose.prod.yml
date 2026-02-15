@@ -1,0 +1,111 @@
+# Production compose: pull pre-built images from GHCR.
+# Images: ghcr.io/<org>/<repo>-web, ghcr.io/<org>/<repo>-backend, ghcr.io/<org>/<repo>-worker
+# Replace <org> with GitHub org/username, <repo> with repo name (e.g. artifact-os).
+#
+# Pinned deploy (recommended): use sha-xxxxxxx for backend+worker for perfect rollback.
+# Web can stay :latest or pin to same sha.
+#
+# Deploy (pro variant with prune):
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml run --rm backend alembic upgrade head
+#   docker compose -f docker-compose.prod.yml up -d --remove-orphans
+#   docker image prune -f
+
+services:
+  proxy:
+    image: nginx:alpine
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/api/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    # Pin to sha for rollback: ghcr.io/<org>/<repo>-backend:sha-abc1234
+    image: ghcr.io/<org>/<repo>-backend:latest
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  worker:
+    # Pin to same sha as backend for consistency: ghcr.io/<org>/<repo>-worker:sha-abc1234
+    image: ghcr.io/<org>/<repo>-worker:latest
+    restart: unless-stopped
+    environment:
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+
+  web:
+    image: ghcr.io/<org>/<repo>-web:latest
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]
+    env_file: .env
+    environment:
+      - NEXT_PUBLIC_API_URL=/api/v1
+      - NEXT_TELEMETRY_DISABLED=1
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      # Use artifact_prod on real servers to avoid confusion with dev
+      - POSTGRES_DB=artifact_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+volumes:
+  postgres_data:

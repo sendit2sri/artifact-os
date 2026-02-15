@@ -3,7 +3,7 @@
 ## Technical Stack
 - **Languages:** Python 3.10+, TypeScript (Frontend).
 - **Backend:** FastAPI, SQLAlchemy (PostgreSQL), Alembic migrations.
-- **Tools:** Docker, Syncthing (for sync-friendly folder structures), Obsidian (for documentation).
+- **Tools:** Docker, Syncthing (sync-friendly folder structures), Obsidian (for documentation).
 
 ## Context Management (Anti-Bloat)
 - **Conciseness:** Be brief. Avoid long explanations of code I didn't ask for.
@@ -21,9 +21,33 @@
 - **Strategy:** If a task is complex, outline the steps *before* writing code.
 - **Failures:** If you encounter a rate limit or "context full" error, warn me immediately and suggest starting a new chat.
 
-## Documentation
+## Documentation (Obsidian-first)
 - If I ask to document something, format it for **Obsidian** (Markdown with Wikilinks `[[Like This]]`).
 - **No root docs:** Any new documentation MUST be written under `docs/**` and SHOULD update `docs/_index.md`. Never create `.md` files in repo root except `README.md` and `QUICK_START.md`.
+
+### Docs generator rules (always-on)
+- When I say: “document this”, “write docs”, “create summary”, “generate .md”, or similar:
+  1) Create one or more `.md` files under `docs/**` (choose the correct bucket).
+  2) Use the same structure every time:
+     - `# <Title>`
+     - `## Summary`
+     - `## Context`
+     - `## What changed`
+     - `## How to run / verify`
+     - `## Files touched`
+     - `## Links` (Obsidian wikilinks)
+  3) Add/Update links in `docs/_index.md` so the new docs are discoverable.
+  4) Output the final file paths as Obsidian-friendly links (e.g., `[[testing/e2e/E2E_FINAL_SUMMARY]]`).
+
+### Docs buckets (use these paths)
+- `docs/testing/e2e/` — Playwright/E2E
+- `docs/changes/YYYY/MM/` — dated change notes
+- `docs/features/` — feature behavior + UX notes
+- `docs/architecture/` — design/structure decisions
+- `docs/solutions/` — fixes + runbooks
+- `docs/routing/` — routing/API integration notes
+- `docs/release/` — release notes
+- `docs/misc/` — everything else
 
 ## Change Control
 - **No breaking changes:** Do not change API contracts, DB schemas, or response formats unless explicitly asked.

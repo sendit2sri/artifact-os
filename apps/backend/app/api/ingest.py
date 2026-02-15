@@ -5,10 +5,14 @@ from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from app.db.session import get_session
 from app.workers.celery_app import celery_app
-from app.models import Job, JobStatus
+from app.models import Job, JobStatus, SourceDoc
+from app.extractors import detect_source_type, normalize_url
 
 # FastAPI Router
 router = APIRouter()
+
+# Standardized steps (must match worker)
+JOB_STEP_DONE = "DONE"
 
 # Request schemas
 class IngestURLRequest(BaseModel):
@@ -19,27 +23,76 @@ class IngestURLRequest(BaseModel):
 # API Endpoints
 @router.post("/ingest")
 def ingest_url(payload: IngestURLRequest, db: Session = Depends(get_session)):
-    """Create a job to ingest a URL (idempotent - won't create duplicates)"""
+    """Create a job to ingest a URL (idempotent - dedupe by canonical_url)"""
     try:
-        idempotency_key = f"{payload.project_id}:{payload.url}"
-        
-        # Check if this URL was already ingested for this project
+        project_uuid = uuid.UUID(payload.project_id)
+        source_type = detect_source_type(payload.url)
+        canonical = normalize_url(payload.url, source_type)
+        idempotency_key = f"{payload.project_id}:{canonical}"
+
+        # Dedupe by existing SourceDoc (canonical_url or url) in project
+        existing_doc = db.exec(
+            select(SourceDoc).where(
+                SourceDoc.project_id == project_uuid,
+                SourceDoc.canonical_url == canonical
+            )
+        ).first()
+        if not existing_doc:
+            existing_doc = db.exec(
+                select(SourceDoc).where(
+                    SourceDoc.project_id == project_uuid,
+                    SourceDoc.url == canonical
+                )
+            ).first()
+        if not existing_doc and canonical != payload.url:
+            existing_doc = db.exec(
+                select(SourceDoc).where(
+                    SourceDoc.project_id == project_uuid,
+                    SourceDoc.url == payload.url
+                )
+            ).first()
+
+        if existing_doc:
+            dup_job = Job(
+                id=uuid.uuid4(),
+                project_id=project_uuid,
+                workspace_id=uuid.UUID(payload.workspace_id),
+                type="url_ingest",
+                status=JobStatus.COMPLETED,
+                idempotency_key=f"{payload.project_id}:dup:{uuid.uuid4()}",
+                current_step=JOB_STEP_DONE,
+                params={"url": payload.url, "source_type": source_type.value, "canonical_url": canonical},
+                result_summary={
+                    "is_duplicate": True,
+                    "message": "Already added",
+                    "source_title": existing_doc.title or canonical,
+                },
+            )
+            db.add(dup_job)
+            db.commit()
+            db.refresh(dup_job)
+            return {
+                **dup_job.dict(),
+                "message": "This source has already been added to this project",
+                "is_duplicate": True,
+            }
+
+        # Check if a job for this canonical is already queued/running/completed
         existing_job = db.exec(
             select(Job).where(
-                Job.project_id == uuid.UUID(payload.project_id),
+                Job.project_id == project_uuid,
                 Job.idempotency_key == idempotency_key
             )
         ).first()
         
         if existing_job:
-            # URL already ingested - return existing job instead of error
             return {
                 **existing_job.dict(),
                 "message": "This source has already been added to this project",
                 "is_duplicate": True
             }
         
-        # Create new job
+        # Create new job (params.source_type for sidebar badge before completion)
         job = Job(
             id=uuid.uuid4(),
             project_id=uuid.UUID(payload.project_id),
@@ -47,7 +100,7 @@ def ingest_url(payload: IngestURLRequest, db: Session = Depends(get_session)):
             type="url_ingest",
             status=JobStatus.PENDING,
             idempotency_key=idempotency_key,
-            params={"url": payload.url}
+            params={"url": payload.url, "source_type": source_type.value, "canonical_url": canonical}
         )
         db.add(job)
         db.commit()

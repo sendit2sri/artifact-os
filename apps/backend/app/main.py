@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlmodel import Session, select, SQLModel
-from app.api import ingest, projects, sources, test_helpers
+from app.api import ingest, projects, sources, test_helpers, workspaces
 from app.models import ResearchNode, ReviewStatus, Job, Workspace
 from app.db.session import engine
 import os
@@ -69,11 +69,17 @@ def on_startup():
 def health_check():
     return {"status": "ok", "system": "Artifact OS"}
 
+
+@app.get("/api/v1/health")
+def api_health():
+    return {"ok": True}
+
 # --- ROUTERS ---
 app.include_router(projects.router, prefix="/api/v1", tags=["Projects"])
 app.include_router(ingest.router,   prefix="/api/v1", tags=["Ingestion"])
 app.include_router(sources.router,  prefix="/api/v1", tags=["Sources"])
 app.include_router(test_helpers.router, prefix="/api/v1", tags=["Test Helpers"])
+app.include_router(workspaces.router, prefix="/api/v1", tags=["Workspaces"])
 
 # Ensure temp directory exists
 UPLOAD_DIR = "/tmp/research_uploads"
@@ -85,6 +91,7 @@ class UpdateFactRequest(BaseModel):
     fact_text: Optional[str] = None
     is_key_claim: Optional[bool] = None
     review_status: Optional[ReviewStatus] = None
+    is_pinned: Optional[bool] = None
 
 class BatchUpdateFactsRequest(BaseModel):
     fact_ids: List[str]
@@ -104,12 +111,13 @@ def update_fact(fact_id: str, payload: UpdateFactRequest):
         
         if payload.fact_text is not None: fact.fact_text = payload.fact_text
         if payload.is_key_claim is not None: fact.is_key_claim = payload.is_key_claim
-        
+        if payload.is_pinned is not None: fact.is_pinned = payload.is_pinned
+
         # ✅ STEP #7: Respect manual review_status override
         # If user explicitly sets review_status, always honor it (even for low confidence)
         if payload.review_status is not None:
             fact.review_status = payload.review_status
-            
+
         db.add(fact)
         db.commit()
         db.refresh(fact)
@@ -125,6 +133,7 @@ def batch_update_facts(payload: BatchUpdateFactsRequest):
             if payload.updates.fact_text is not None: fact.fact_text = payload.updates.fact_text
             if payload.updates.is_key_claim is not None: fact.is_key_claim = payload.updates.is_key_claim
             if payload.updates.review_status is not None: fact.review_status = payload.updates.review_status
+            if payload.updates.is_pinned is not None: fact.is_pinned = payload.updates.is_pinned
             db.add(fact)
             
         db.commit()

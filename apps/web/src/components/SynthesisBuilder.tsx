@@ -135,10 +135,11 @@ export function SynthesisBuilder({ open, onOpenChange, selectedFacts, onRemoveFa
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
-            <SheetContent 
+            <SheetContent
                 data-testid="synthesis-builder"
-                className="w-[400px] sm:w-[600px] flex flex-col p-0 gap-0 shadow-2xl border-l border-stone-200 dark:border-stone-700 bg-white dark:bg-[#2A2A2A] z-[100]" 
-                onPointerDownOutside={(e) => e.preventDefault()} 
+                nonModal
+                className="w-[400px] sm:w-[600px] flex flex-col p-0 gap-0 shadow-2xl border-l border-stone-200 dark:border-stone-700 bg-white dark:bg-[#2A2A2A] z-[100]"
+                onPointerDownOutside={(e) => e.preventDefault()}
                 onInteractOutside={(e) => e.preventDefault()}
             >
 
