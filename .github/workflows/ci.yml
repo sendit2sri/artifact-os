@@ -64,10 +64,20 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain)" || { echo "Repo has uncommitted changes"; exit 1; }
 
-      - name: Run backend tests
+      - name: Debug paths
         run: |
-          cd apps/backend
-          PYTHONPATH=. python -m pytest -q
+          echo "PWD=$(pwd)"
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          ls -la
+          ls -la "$GITHUB_WORKSPACE" 2>/dev/null || true
+          ls -la "$GITHUB_WORKSPACE/apps" 2>/dev/null || true
+          ls -la "$GITHUB_WORKSPACE/apps/backend" 2>/dev/null || true
+
+      - name: Run backend tests
+        working-directory: apps/backend
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q
 
   web:
     runs-on: ubuntu-latest
