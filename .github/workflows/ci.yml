@@ -64,8 +64,10 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain)" || { echo "Repo has uncommitted changes"; exit 1; }
 
-      - name: Run tests
-        run: pytest -q
+      - name: Run backend tests
+        run: |
+          cd apps/backend
+          PYTHONPATH=. python -m pytest -q
 
   web:
     runs-on: ubuntu-latest

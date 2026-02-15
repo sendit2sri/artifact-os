@@ -1,8 +1,8 @@
 """add reviewstatus enum values
 
-Revision ID: 19a38gb66c46
+Revision ID: 50138b67e74e
 Revises: 18f27fa55b35
-Create Date: 2026-02-16 12:00:00.000000
+Create Date: 2026-02-16 02:52:24.495940
 
 """
 from typing import Sequence, Union
@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 
 
-revision: str = "19a38gb66c46"
+revision: str = "50138b67e74e"
 down_revision: Union[str, Sequence[str], None] = "18f27fa55b35"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

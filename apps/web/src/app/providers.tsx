@@ -24,7 +24,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   
   // Expose E2E controls on window for test helpers
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // What mode did the browser actually see? (for preflight diagnostics)
+      document.documentElement.setAttribute('data-e2e-mode', isE2EMode ? 'true' : 'false');
+    }
     if (isE2EMode && typeof window !== 'undefined') {
+      // DOM marker for Playwright/screenshots (visible even if JS is delayed)
+      document.documentElement.setAttribute('data-e2e', 'true');
+
       // Flag for force-error on next synthesis request
       let forceNextSynthesisError = false;
       

@@ -98,13 +98,14 @@ jobs:
           celery -A app.workers.celery_app worker --loglevel=info &
           echo $! > celery.pid
 
-      - name: Build and start frontend
+      - name: Start frontend (dev)
         working-directory: apps/web
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
         run: |
-          npm run build
-          npm run start &
+          NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 \
+          NEXT_PUBLIC_E2E_MODE=true \
+          NEXT_PUBLIC_ENABLE_TEST_SEED=true \
+          PORT=3000 \
+          npm run dev -- --port 3000 &
           echo $! > frontend.pid
 
       - name: Wait for services
@@ -119,6 +120,12 @@ jobs:
             sleep 2
           done
           curl -sf http://localhost:3000/ >/dev/null
+
+      - name: Preflight: __e2e harness exposed
+        working-directory: apps/web
+        env:
+          BASE_URL: http://localhost:3000
+        run: node scripts/e2e-preflight.js
 
       - name: Run Playwright tests
         working-directory: apps/web
@@ -143,7 +150,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-screenshots
-          path: apps/web/*.png
+          path: |
+            apps/web/*.png
+            apps/web/test-results/
           retention-days: 7
 
       - name: Cleanup
@@ -161,3 +170,4 @@ jobs:
           pkill -f "uvicorn app.main:app" 2>/dev/null || true
           pkill -f "celery -A app.workers.celery_app" 2>/dev/null || true
           pkill -f "next start" 2>/dev/null || true
+          pkill -f "next dev" 2>/dev/null || true
