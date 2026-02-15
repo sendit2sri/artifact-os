@@ -6,16 +6,6 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND_DIR="$REPO_ROOT/apps/backend"
-VERSIONS_DIR="$BACKEND_DIR/alembic/versions"
-CI_MSG="ci_check_do_not_commit"
-
-cleanup() {
-  cd "$REPO_ROOT"
-  rm -f "${OUT:-}" 2>/dev/null || true
-  rm -f "$VERSIONS_DIR"/*${CI_MSG}*.py 2>/dev/null || true
-  git checkout -- apps/backend/alembic/versions/ 2>/dev/null || true
-}
-trap cleanup EXIT
 
 cd "$BACKEND_DIR"
 
@@ -36,22 +26,10 @@ if [ "${SKIP_UPGRADE:-0}" != "1" ]; then
   alembic upgrade head
 fi
 
-# 4. Autogenerate: creates a new file only if models changed
-BEFORE=$(find "$VERSIONS_DIR" -name "*.py" ! -name "__init__.py" 2>/dev/null | wc -l | tr -d ' ')
-OUT="$(mktemp)"
-alembic revision --autogenerate -m "$CI_MSG" >"$OUT" 2>&1 || {
-  echo "Migration check failed while autogenerating:"
-  cat "$OUT"
-  rm -f "$OUT"
-  exit 1
-}
-rm -f "$OUT"
-AFTER=$(find "$VERSIONS_DIR" -name "*.py" ! -name "__init__.py" 2>/dev/null | wc -l | tr -d ' ')
-
-# 5. Fail if new file appeared (models out of sync)
-if [ "$AFTER" -gt "$BEFORE" ]; then
+# 4. Check for pending autogenerate ops (no file creation)
+alembic check || {
   echo "Models out of sync. Run: cd apps/backend && alembic revision --autogenerate -m 'your_message'"
   exit 1
-fi
+}
 
 echo "Migrations OK (models in sync)"

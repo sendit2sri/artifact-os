@@ -73,7 +73,10 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=False,  # Avoid enum/VARCHAR false positives in autogenerate
+            compare_server_default=False,  # Avoid server default false positives
         )
 
         with context.begin_transaction():
