@@ -15,9 +15,10 @@ boto3
 openai
 python-dotenv
 psycopg2-binary
-trafilatura==1.6.0
-pymupdf==1.23.8
+trafilatura==2.0.0
+pymupdf==1.27.1
 beautifulsoup4
 bleach
 requests
 youtube-transcript-api
+pytest

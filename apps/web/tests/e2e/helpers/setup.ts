@@ -12,25 +12,22 @@ export interface WaitForAppIdleOptions {
 }
 
 /**
- * Wait briefly for Providers to mount and expose __e2e.waitForIdle.
- * Avoids intermittent "__e2e not exposed" on fresh navigation/reload.
+ * Wait for Providers to mount and expose __e2e.waitForIdle.
+ * Uses waitForFunction (same as preflight) to tolerate useEffect/hydration timing.
  */
-async function waitForE2EControls(page: Page, timeoutMs: number): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const ok = await page
-      .evaluate(() => {
-        const e2e = (window as any).__e2e;
-        return !!e2e && typeof e2e.waitForIdle === 'function';
-      })
-      .catch(() => false);
+async function waitForE2EControls(page: Page, _timeoutMs: number): Promise<void> {
+  const url = page.url();
+  console.log('[waitForE2EControls] page.url:', url);
 
-    if (ok) return;
-    await page.waitForTimeout(50);
-  }
+  await page.waitForLoadState('domcontentloaded');
 
-  throw new Error(
-    '__e2e not exposed (E2E mode not enabled? Set NEXT_PUBLIC_E2E_MODE=true when starting dev server)'
+  await page.waitForFunction(
+    () =>
+      document.documentElement.getAttribute('data-e2e') === 'true' &&
+      typeof (window as any).__e2e !== 'undefined' &&
+      typeof (window as any).__e2e?.waitForIdle === 'function',
+    null,
+    { timeout: 15000 }
   );
 }
 

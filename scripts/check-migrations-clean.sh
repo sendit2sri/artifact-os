@@ -1,21 +1,19 @@
 #!/usr/bin/env bash
 # Verify models are in sync with migrations (no forgotten autogenerate).
-# Run from repo root. Requires: DATABASE_URL, alembic, apps/backend.
-# Leaves no files behind; uses trap for cleanup on success/failure.
+# Run from repo root. CI: DATABASE_URL + alembic in PATH. Local Docker: use make db-check or run via backend container.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND_DIR="$REPO_ROOT/apps/backend"
-VERSIONS_DIR="$BACKEND_DIR/alembic/versions"
-CI_MSG="ci_check_do_not_commit"
 
-cleanup() {
-  cd "$REPO_ROOT"
-  rm -f "${OUT:-}" 2>/dev/null || true
-  rm -f "$VERSIONS_DIR"/*${CI_MSG}*.py 2>/dev/null || true
-  git checkout -- apps/backend/alembic/versions/ 2>/dev/null || true
+# Run alembic: use PATH if available, else via Docker (backend container has DATABASE_URL from .env)
+run_alembic() {
+  if command -v alembic >/dev/null 2>&1; then
+    alembic "$@"
+  else
+    (cd "$REPO_ROOT" && docker compose exec -T backend bash -c "cd /app && alembic $*")
+  fi
 }
-trap cleanup EXIT
 
 cd "$BACKEND_DIR"
 
@@ -25,33 +23,23 @@ if [ -n "$(git -C "$REPO_ROOT" status --porcelain -- apps/backend/alembic/versio
   exit 1
 fi
 
-# 2. Require DATABASE_URL (same DB that alembic upgrade head used)
-if [ -z "$DATABASE_URL" ]; then
-  echo "DATABASE_URL required"
+# 2. Require DATABASE_URL when running alembic locally (Docker uses .env)
+if ! command -v alembic >/dev/null 2>&1; then
+  : # Using Docker; DATABASE_URL from container .env
+elif [ -z "${DATABASE_URL:-}" ]; then
+  echo "DATABASE_URL required (or use: make db-check)"
   exit 1
 fi
 
 # 3. Upgrade to latest (CI already did this; SKIP_UPGRADE=1 to skip)
 if [ "${SKIP_UPGRADE:-0}" != "1" ]; then
-  alembic upgrade head
+  run_alembic upgrade head
 fi
 
-# 4. Autogenerate: creates a new file only if models changed
-BEFORE=$(find "$VERSIONS_DIR" -name "*.py" ! -name "__init__.py" 2>/dev/null | wc -l | tr -d ' ')
-OUT="$(mktemp)"
-alembic revision --autogenerate -m "$CI_MSG" >"$OUT" 2>&1 || {
-  echo "Migration check failed while autogenerating:"
-  cat "$OUT"
-  rm -f "$OUT"
+# 4. Check for pending autogenerate ops (no file creation)
+run_alembic check || {
+  echo "Models out of sync. Run: make db-rev msg='your_message' (or alembic revision --autogenerate)"
   exit 1
 }
-rm -f "$OUT"
-AFTER=$(find "$VERSIONS_DIR" -name "*.py" ! -name "__init__.py" 2>/dev/null | wc -l | tr -d ' ')
-
-# 5. Fail if new file appeared (models out of sync)
-if [ "$AFTER" -gt "$BEFORE" ]; then
-  echo "Models out of sync. Run: cd apps/backend && alembic revision --autogenerate -m 'your_message'"
-  exit 1
-fi
 
 echo "Migrations OK (models in sync)"
