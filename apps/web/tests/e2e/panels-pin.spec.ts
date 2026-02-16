@@ -67,9 +67,9 @@ test.describe('Panels Pin', () => {
     await historyBtn.scrollIntoViewIfNeeded();
     await expect(historyBtn).toBeEnabled();
     await historyBtn.click();
-    await expect(async () => {
-      await expect(page.getByTestId('outputs-history-drawer')).toBeVisible({ timeout: 5000 });
-      await expect(page.getByTestId('output-drawer')).toBeVisible({ timeout: 5000 });
-    }).toPass({ timeout: 15000 });
+    const historyDrawer = page.getByTestId('outputs-history-drawer');
+    await expect(historyDrawer).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('outputs-history-content')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByTestId('output-drawer')).toBeVisible({ timeout: 5000 });
   });
 });
