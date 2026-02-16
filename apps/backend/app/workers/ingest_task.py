@@ -243,6 +243,31 @@ def ingest_url_task(self, job_id: str, url: str):
         e2e_retry_ok = params.get("e2e_retry_ok") is True
 
         try:
+            # Graceful deduplication: check for existing SourceDoc before any network call
+            existing_doc = db.exec(
+                select(SourceDoc).where(SourceDoc.project_id == job.project_id, SourceDoc.url == url)
+            ).first()
+            if not existing_doc and canonical_url:
+                existing_doc = db.exec(
+                    select(SourceDoc).where(
+                        SourceDoc.project_id == job.project_id,
+                        SourceDoc.canonical_url == canonical_url
+                    )
+                ).first()
+            if existing_doc:
+                job.status = JobStatus.COMPLETED
+                job.current_step = JOB_STEP_DONE
+                job.steps_completed = 5
+                job.result_summary = {
+                    "is_duplicate": True,
+                    "source_id": str(existing_doc.id),
+                    "source_title": existing_doc.title or canonical_url or url,
+                    "source_type": source_type.value,
+                }
+                db.add(job)
+                db.commit()
+                return
+
             job.current_step = JOB_STEP_QUEUED
             job.status = JobStatus.RUNNING
             db.add(job)
@@ -408,11 +433,13 @@ def ingest_url_task(self, job_id: str, url: str):
             db.commit()
             
             saved_count = 0
+            auto_flagged_count = 0
             for fact_data in extraction_result.facts:
                 try:
-                    status = IntegrityStatus.VERIFIED if fact_data.confidence == "HIGH" else IntegrityStatus.NEEDS_REVIEW
-                    confidence_score = 85 if fact_data.confidence == "HIGH" else 60
-                    review_status = ReviewStatus.NEEDS_REVIEW if confidence_score < 75 else ReviewStatus.PENDING
+                    confidence_score = 85 if fact_data.confidence == "HIGH" else (60 if fact_data.confidence == "MEDIUM" else 40)
+                    review_status = ReviewStatus.PENDING if confidence_score >= 75 else ReviewStatus.NEEDS_REVIEW
+                    if review_status == ReviewStatus.NEEDS_REVIEW:
+                        auto_flagged_count += 1
                     quote = fact_data.quote_span
                     start_raw, end_raw = find_quote_offsets(content_formats["text_raw"], quote)
                     start_md, end_md = find_quote_offsets(content_formats.get("markdown"), quote)
@@ -438,7 +465,6 @@ def ingest_url_task(self, job_id: str, url: str):
                         evidence_start_char_md=start_md,
                         evidence_end_char_md=end_md,
                         tags=fact_data.tags or [],
-                        integrity_status=status,
                         review_status=review_status
                     )
                     db.add(fact)
@@ -453,6 +479,7 @@ def ingest_url_task(self, job_id: str, url: str):
             job.result_summary = {
                 "source_title": page_title,
                 "facts_count": saved_count,
+                "auto_flagged_count": auto_flagged_count,
                 "summary": extraction_result.summary_brief,
                 "source_type": source_type.value,
                 "content_formats": {

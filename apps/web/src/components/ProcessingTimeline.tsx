@@ -25,11 +25,11 @@ function jobStatusToStage(status: Job["status"], currentStep?: string | null): S
     return "queued";
 }
 
-function elapsedSeconds(createdAt: string | undefined): number {
-    if (!createdAt) return 0;
+function elapsedSeconds(createdAt: string | undefined, now: number): number {
+    if (!createdAt || now === 0) return 0;
     const created = new Date(createdAt).getTime();
     if (isNaN(created)) return 0;
-    return Math.floor((Date.now() - created) / 1000);
+    return Math.floor((now - created) / 1000);
 }
 
 function pendingStatusMessage(job: Job, elapsed: number): { main: string; hint?: string } {
@@ -65,12 +65,19 @@ interface ProcessingTimelineProps {
 
 export function ProcessingTimeline({ jobs, onRetry }: ProcessingTimelineProps) {
     const [tick, setTick] = useState(0);
+    // Use 0 for SSR to avoid hydration mismatch (#418); set real value after mount
+    const [now, setNow] = useState(0);
     const activeOrFailed = jobs.filter((j) =>
         ["PENDING", "RUNNING", "FAILED"].includes(j.status)
     );
     const hasPending = activeOrFailed.some((j) => j.status === "PENDING");
     const isDev = process.env.NODE_ENV === "development";
 
+    useEffect(() => {
+        setNow(Date.now());
+        const id = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(id);
+    }, []);
     useEffect(() => {
         if (!hasPending) return;
         const id = setInterval(() => setTick((t) => t + 1), 5000);
@@ -79,7 +86,7 @@ export function ProcessingTimeline({ jobs, onRetry }: ProcessingTimelineProps) {
 
     const copyDebugInfo = useCallback(
         (job: Job) => {
-            const elapsed = elapsedSeconds(job.created_at);
+            const elapsed = elapsedSeconds(job.created_at, now);
             const payload = {
                 jobId: job.id,
                 status: job.status,
@@ -90,7 +97,7 @@ export function ProcessingTimeline({ jobs, onRetry }: ProcessingTimelineProps) {
             };
             navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
         },
-        []
+        [now]
     );
 
     if (activeOrFailed.length === 0) return null;
@@ -112,7 +119,7 @@ export function ProcessingTimeline({ jobs, onRetry }: ProcessingTimelineProps) {
                         : label;
                 const stage = jobStatusToStage(job.status, job.current_step);
                 const isFailed = job.status === "FAILED";
-                const elapsed = elapsedSeconds(job.created_at);
+                const elapsed = elapsedSeconds(job.created_at, now);
                 const pendingMsg = job.status === "PENDING" ? pendingStatusMessage(job, elapsed) : null;
 
                 return (

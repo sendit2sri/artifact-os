@@ -28,11 +28,12 @@ interface QueuedJobAlertProps {
  * Interval uses empty deps to avoid multiplication on re-renders.
  */
 export function QueuedJobAlert({ jobs, onRetry, className }: QueuedJobAlertProps) {
-  const [now, setNow] = useState(() => Date.now());
+  // Use 0 for SSR to avoid hydration mismatch (#418); set real value after mount
+  const [now, setNow] = useState(0);
   const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
 
-  // Update "now" every second. Empty deps = one interval, cleanup on unmount.
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
@@ -194,13 +195,12 @@ function WarningJobCard({ job }: { job: StuckJob }) {
  * Compact variant for toolbars/headers
  */
 export function QueuedJobBadge({ jobs }: { jobs: Job[] }) {
-  const [now, setNow] = useState(Date.now());
+  // Use 0 for SSR to avoid hydration mismatch (#418); set real value after mount
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);
 

@@ -15,11 +15,20 @@ ARG NEXT_PUBLIC_ENABLE_TEST_SEED=true
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_E2E_MODE=$NEXT_PUBLIC_E2E_MODE
 ENV NEXT_PUBLIC_ENABLE_TEST_SEED=$NEXT_PUBLIC_ENABLE_TEST_SEED
+# Fail build if E2E mode not set (catches compose build-arg bugs)
+RUN echo "Build env: NEXT_PUBLIC_E2E_MODE=$NEXT_PUBLIC_E2E_MODE" && \
+    [ "$NEXT_PUBLIC_E2E_MODE" = "true" ] || { echo "ERROR: NEXT_PUBLIC_E2E_MODE must be 'true' for E2E build"; exit 1; }
 RUN npm run build
 RUN npm prune --omit=dev
 
 # Stage 3: runner — production image (used for E2E prod mode)
 FROM node:20-alpine AS runner
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ARG NEXT_PUBLIC_E2E_MODE=true
+ARG NEXT_PUBLIC_ENABLE_TEST_SEED=true
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_E2E_MODE=${NEXT_PUBLIC_E2E_MODE}
+ENV NEXT_PUBLIC_ENABLE_TEST_SEED=${NEXT_PUBLIC_ENABLE_TEST_SEED}
 RUN apk --no-cache add wget
 WORKDIR /app
 ENV NODE_ENV=production

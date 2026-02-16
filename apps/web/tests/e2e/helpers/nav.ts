@@ -68,6 +68,31 @@ export async function gotoProject(page: Page, projectId: string) {
   }
 }
 
+/** Enable "Collapse duplicates" toggle. Call after ensureFactsControlsOpen if on mobile. */
+export async function toggleCollapseOn(page: Page): Promise<void> {
+  const toggle = page.getByTestId('toggle-collapse-similar');
+  if (!(await toggle.isVisible().catch(() => false))) {
+    await page.getByTestId('facts-controls-open').click({ timeout: 2000 }).catch(() => {});
+    await page.waitForTimeout(200);
+  }
+  if (!(await toggle.isChecked().catch(() => false))) {
+    await toggle.check();
+    await page.waitForTimeout(200);
+  }
+}
+
+/** Set "Group by Source" in facts controls. */
+export async function groupBySource(page: Page): Promise<void> {
+  const groupTrigger = page.getByTestId('facts-group-trigger');
+  await expect(groupTrigger).toBeVisible({ timeout: 5000 });
+  const groupText = await groupTrigger.textContent().catch(() => '');
+  if (!groupText?.toLowerCase().includes('source')) {
+    await groupTrigger.click();
+    await page.getByTestId('facts-group-option-source').click();
+    await page.waitForTimeout(200);
+  }
+}
+
 /** Switch to "All Data" view so all facts (including non-key-claims) are visible. */
 export async function switchToAllDataView(page: Page): Promise<void> {
   const allTab = page.getByTestId('view-tab-all');

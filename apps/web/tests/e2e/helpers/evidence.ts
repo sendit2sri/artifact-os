@@ -83,16 +83,24 @@ export async function assertEvidenceForFact(
   await expect(domainEl).toContainText(expectedDomain);
 }
 
+/**
+ * Click Next and wait until evidence-fact-text changes (deterministic, no fixed sleeps).
+ */
 export async function nextEvidence(page: Page) {
+  const factTextEl = page.getByTestId('evidence-fact-text');
+  const prevText = (await factTextEl.textContent()) ?? '';
   await page.getByTestId('evidence-next').click();
-  // Wait for evidence panel to update (fact text should be present)
-  await expect(page.getByTestId('evidence-fact-text')).toBeVisible({ timeout: 3000 });
+  await expect(factTextEl).not.toHaveText(prevText.trim(), { timeout: 5000 });
 }
 
+/**
+ * Click Prev and wait until evidence-fact-text changes (deterministic, no fixed sleeps).
+ */
 export async function prevEvidence(page: Page) {
+  const factTextEl = page.getByTestId('evidence-fact-text');
+  const prevText = (await factTextEl.textContent()) ?? '';
   await page.getByTestId('evidence-prev').click();
-  // Wait for evidence panel to update (fact text should be present)
-  await expect(page.getByTestId('evidence-fact-text')).toBeVisible({ timeout: 3000 });
+  await expect(factTextEl).not.toHaveText(prevText.trim(), { timeout: 5000 });
 }
 
 export async function closeEvidence(page: Page) {

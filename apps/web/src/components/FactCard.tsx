@@ -18,6 +18,7 @@ interface FactCardProps {
     onViewEvidence: (fact: Fact) => void;
     isSelected?: boolean;
     onToggleSelect?: (fact: Fact) => void;
+    onEnterSelectionMode?: () => void;
     selectionMode?: boolean;
     /** When fact is suppressed, the canonical fact (for "Duplicate of" line) */
     canonicalFact?: Fact | null;
@@ -59,7 +60,7 @@ function showToastWithUndo(label: string, entry: UndoEntry, undoManager: UndoMan
     }
 }
 
-export function FactCard({ fact, onViewEvidence, isSelected, onToggleSelect, selectionMode, canonicalFact, undoManager, onSimilarChipClick }: FactCardProps) {
+export function FactCard({ fact, onViewEvidence, isSelected, onToggleSelect, onEnterSelectionMode, selectionMode, canonicalFact, undoManager, onSimilarChipClick }: FactCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedText, setEditedText] = useState(fact.fact_text);
     const [displayStatus, setDisplayStatus] = useState<ReviewStatus>(fact.review_status);
@@ -131,14 +132,18 @@ export function FactCard({ fact, onViewEvidence, isSelected, onToggleSelect, sel
             )}
             onClick={() => !isEditing && onToggleSelect?.(fact)}
         >
-            {/* LEFT: Source Icon + Confidence Dot */}
-            <div className="flex items-center gap-3 shrink-0">
+            {/* LEFT: Source Icon + Confidence Dot - select wrapper has z-10 so it stays above group overlays */}
+            <div className="relative z-10 flex items-center gap-3 shrink-0">
                 {/* Checkbox */}
                 <button
                     data-testid="fact-select-button"
-                    onClick={(e) => { e.stopPropagation(); onToggleSelect?.(fact); }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onEnterSelectionMode?.();
+                        onToggleSelect?.(fact);
+                    }}
                     className={cn(
-                        "text-faint-foreground hover:text-muted-foreground transition-colors",
+                        "shrink-0 text-faint-foreground hover:text-muted-foreground transition-colors pointer-events-auto",
                         isSelected && "text-primary",
                         !isSelected && !selectionMode && "opacity-0 group-hover:opacity-100"
                     )}

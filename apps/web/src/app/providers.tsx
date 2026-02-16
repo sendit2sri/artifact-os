@@ -22,7 +22,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     },
   }));
   
-  // Expose E2E controls on window for test helpers
+  // Expose E2E controls on window for test helpers + live React Query counters
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // What mode did the browser actually see? (for preflight diagnostics)
@@ -31,6 +31,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     if (isE2EMode && typeof window !== 'undefined') {
       // DOM marker for Playwright/screenshots (visible even if JS is delayed)
       document.documentElement.setAttribute('data-e2e', 'true');
+
+      // Live React Query counters: update whenever query/mutation caches change
+      const syncCounts = () => {
+        if ((window as any).__e2e) {
+          (window as any).__e2e.rqFetchingCount = queryClient.isFetching();
+          (window as any).__e2e.rqMutatingCount = queryClient.isMutating();
+        }
+      };
 
       // Flag for force-error on next synthesis request
       let forceNextSynthesisError = false;
@@ -45,8 +53,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         // Check if app is idle (no pending fetches/mutations/jobs)
         // Returns object with idle status + diagnostic reasons (for debug strip)
         isIdle: () => {
-          const fetching = queryClient.isFetching();
-          const mutating = queryClient.isMutating();
+          syncCounts();
+          const fetching = (window as any).__e2e?.rqFetchingCount ?? queryClient.isFetching();
+          const mutating = (window as any).__e2e?.rqMutatingCount ?? queryClient.isMutating();
           
           // Check job status from exposed state
           const jobs = (window as any).__e2e?.state?.jobs ?? [];
@@ -89,7 +98,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           return new Promise((resolve, reject) => {
             const start = Date.now();
             const check = () => {
-              const queryIdle = queryClient.isFetching() === 0 && queryClient.isMutating() === 0;
+              syncCounts();
+              const fetchCount = (window as any).__e2e?.rqFetchingCount ?? queryClient.isFetching();
+              const mutCount = (window as any).__e2e?.rqMutatingCount ?? queryClient.isMutating();
+              const queryIdle = fetchCount === 0 && mutCount === 0;
               const rawJobs = (window as any).__e2e?.state?.jobs;
               // If requireNoActiveJobs and jobs is undefined (race on first mount), treat as not idle until exported.
               const jobsUnknown = requireNoActiveJobs && rawJobs === undefined;
@@ -102,16 +114,19 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 }
                 resolve(true);
               } else if (Date.now() - start > timeoutMs) {
+                syncCounts();
                 const pending = Array.isArray(jobs) ? jobs.filter((j: any) => j.status === "PENDING").length : 0;
                 const running = Array.isArray(jobs) ? jobs.filter((j: any) => j.status === "RUNNING").length : 0;
                 const failed = Array.isArray(jobs) ? jobs.filter((j: any) => j.status === "FAILED").length : 0;
                 const rawJobsType = rawJobs === undefined ? "undefined" : Array.isArray(rawJobs) ? "array" : typeof rawJobs;
                 const phase = (window as any).__e2e?.state?.phase ?? "unknown";
+                const rqFetch = (window as any).__e2e?.rqFetchingCount ?? 0;
+                const rqMut = (window as any).__e2e?.rqMutatingCount ?? 0;
                 
                 reject(new Error(
                   `Timeout waiting for idle (${timeoutMs}ms):\n` +
-                  `  fetching: ${queryClient.isFetching()}\n` +
-                  `  mutating: ${queryClient.isMutating()}\n` +
+                  `  rqFetchingCount: ${rqFetch}\n` +
+                  `  rqMutatingCount: ${rqMut}\n` +
                   `  jobsUnknown: ${jobsUnknown}\n` +
                   `  rawJobsType: ${rawJobsType}\n` +
                   `  phase: ${phase}\n` +
@@ -190,13 +205,28 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         selectedCount: 0,
       };
 
-      console.log('🧪 E2E controls exposed on window.__e2e');
+      syncCounts();
+
+      const unsubQ = queryClient.getQueryCache().subscribe(() => syncCounts());
+      const unsubM = queryClient.getMutationCache().subscribe(() => syncCounts());
+
+      console.log('🧪 E2E controls exposed on window.__e2e (live RQ counters)');
+
+      return () => {
+        unsubQ();
+        unsubM();
+      };
     }
   }, [queryClient]);
   
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="light"
+        enableSystem={false}
+        forcedTheme={isE2EMode ? "light" : undefined}
+      >
         {isE2EMode && (
           <style>{`
             /* Disable all animations in E2E mode for deterministic timing */

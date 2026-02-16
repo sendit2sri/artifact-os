@@ -1,18 +1,19 @@
 # E2E override: run web in production mode (pre-built image, next start only).
 # Use: docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d ...
-# Build first: make e2e-rebuild
+# Build first: make e2e-rebuild-no-cache (uses docker build with explicit NEXT_PUBLIC_* args)
 #
-# Flow: make e2e-rebuild → make e2e-up → make e2e-smoke
+# Flow: make e2e-rebuild-no-cache → make e2e-up → make e2e-smoke
+#
+# GUARDRAIL: E2E must NOT mount ./apps/web:/app — it would override the built .next
+# and break data-e2e / SSR. volumes: !reset [] clears base compose volumes.
 
 services:
   web:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
-      target: runner
-      args:
-        NEXT_PUBLIC_API_URL: /api/v1
-        NEXT_PUBLIC_E2E_MODE: "true"
-        NEXT_PUBLIC_ENABLE_TEST_SEED: "true"
+    image: artifact-os-web:latest
+    build: !reset null  # image-only — built by make e2e-rebuild-no-cache
     command: ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]
-    volumes: []
+    environment:
+      NEXT_PUBLIC_API_URL: "/api/v1"
+      NEXT_PUBLIC_E2E_MODE: "true"
+      NEXT_PUBLIC_ENABLE_TEST_SEED: "true"
+    volumes: !reset []  # no bind mounts — use built image only

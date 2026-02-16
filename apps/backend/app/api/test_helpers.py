@@ -6,11 +6,12 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select, delete
 from uuid import UUID, uuid4
 from pydantic import BaseModel
-from typing import Optional, List, Union, Dict, Any
+from typing import Optional, List, Union, Dict, Any, Tuple
 import os
+import re
 
 from app.db.session import get_session
-from app.models import Workspace, Project, SourceDoc, ResearchNode, NodeType, ReviewStatus, IntegrityStatus, Output, Job, JobStatus, SourceType, CanvasState, UserPreference
+from app.models import Workspace, Project, SourceDoc, ResearchNode, NodeType, ReviewStatus, Output, Job, JobStatus, SourceType, CanvasState, UserPreference
 
 router = APIRouter()
 
@@ -23,6 +24,41 @@ DEFAULT_SOURCE_ID = UUID("123e4567-e89b-12d3-a456-426614174002")
 def is_test_seed_enabled():
     """Check if test seed endpoints are enabled"""
     return os.getenv("ARTIFACT_ENABLE_TEST_SEED", "false").lower() == "true"
+
+
+def _normalize_whitespace(s: str) -> str:
+    """Collapse sequences of whitespace to single space."""
+    return re.sub(r"\s+", " ", s.strip())
+
+
+def _compute_evidence_offsets(content: str, quote: str, fact_label: str) -> Tuple[int, int]:
+    """
+    Compute evidence_start_char_raw and evidence_end_char_raw deterministically.
+    First tries exact find; if not found, retries with whitespace-normalized strings.
+    Raises ValueError if quote not found (do NOT leave offsets null).
+    Offsets are always for the original content (content_text_raw).
+    """
+    if not content or not quote:
+        raise ValueError(f"[{fact_label}] Empty content or quote")
+    idx = content.find(quote)
+    if idx == -1:
+        norm_content = _normalize_whitespace(content)
+        norm_quote = _normalize_whitespace(quote)
+        norm_idx = norm_content.find(norm_quote)
+        content_preview = content[:120].replace("\n", " ") if content else ""
+        quote_preview = quote[:120].replace("\n", " ") if quote else ""
+        if norm_idx == -1:
+            raise ValueError(
+                f"[{fact_label}] quote_text_raw not found in content (exact or normalized). "
+                f"Quote ({len(quote)} chars): {repr(quote_preview)}... Content len: {len(content)}, preview: {repr(content_preview)}..."
+            )
+        # Quote found in normalized but not in raw - offsets would be wrong. Fail fast.
+        raise ValueError(
+            f"[{fact_label}] quote_text_raw found in normalized content but not in raw. "
+            f"Ensure quote exactly matches content_text_raw (whitespace, encoding). "
+            f"Quote: {repr(quote_preview)}... Content preview: {repr(content_preview)}..."
+        )
+    return idx, idx + len(quote)
 
 class SeedRequest(BaseModel):
     """Optional parameters for test seeding (parallel-safe)"""
@@ -73,12 +109,13 @@ def seed_test_data(payload: SeedRequest = SeedRequest(), db: Session = Depends(g
         
         # Optional: Reset existing data for idempotency
         if payload.reset:
-            # Delete in dependency order: user_preferences → facts → outputs → jobs → source_docs → project
+            # Delete in dependency order: user_preferences → facts → outputs → jobs → source_docs → canvas_state → project
             db.exec(delete(UserPreference).where(UserPreference.project_id == project_id))
             db.exec(delete(ResearchNode).where(ResearchNode.project_id == project_id))
             db.exec(delete(Output).where(Output.project_id == project_id))
             db.exec(delete(Job).where(Job.project_id == project_id))
             db.exec(delete(SourceDoc).where(SourceDoc.project_id == project_id))
+            db.exec(delete(CanvasState).where(CanvasState.project_id == project_id))
             db.exec(delete(Project).where(Project.id == project_id))
             db.flush()
         
@@ -147,6 +184,7 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
         
         # 3b. Second source (different domain) for E2E "mixed sources" / builder flow
         source2_id = uuid4()
+        source2_content = "Additional context for E2E."
         source2 = SourceDoc(
             id=source2_id,
             project_id=project_id,
@@ -154,9 +192,9 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
             url="https://other.com/second-source",
             domain="other.com",
             title="Second Source",
-            content_text="Additional context for E2E.",
-            content_text_raw="Additional context for E2E.",
-            content_markdown="Additional context for E2E.",
+            content_text=source2_content,
+            content_text_raw=source2_content,
+            content_markdown=source2_content,
         )
         db.add(source2)
         db.flush()
@@ -199,20 +237,19 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
         
         if facts_to_create >= 1:
             quote1 = "global temperatures have risen by approximately 1.1°C since pre-industrial times"
-            start1 = sample_content.find(quote1)
+            start1, end1 = _compute_evidence_offsets(sample_content, quote1, "E2E:APPROVED-1")
             snippet1 = "Recent studies indicate that global temperatures have risen by approximately 1.1°C since pre-industrial times. This warming trend is primarily driven by human activities."
             fact1 = ResearchNode(
                 id=known_fact_ids["approved_1"],  # Deterministic ID for E2E selectors
                 project_id=project_id,
                 source_doc_id=source_id,
                 type=NodeType.FACT,
-                fact_text="Climate research shows global temperatures have risen by approximately 1.1°C since pre-industrial times [E2E_APPROVED_1]",  # Unique anchor for tests
+                fact_text="[E2E:APPROVED-1] Climate research shows global temperatures have risen by approximately 1.1°C since pre-industrial times",
                 quote_text_raw=quote1,
                 evidence_snippet=snippet1,
-                evidence_start_char_raw=start1 if start1 != -1 else None,
-                evidence_end_char_raw=start1 + len(quote1) if start1 != -1 else None,
+                evidence_start_char_raw=start1,
+                evidence_end_char_raw=end1,
                 confidence_score=95,
-                integrity_status=IntegrityStatus.VERIFIED,
                 review_status=ReviewStatus.APPROVED,  # Always APPROVED for with_approved_facts
                 is_key_claim=True,
                 is_pinned=pin_facts,
@@ -222,7 +259,7 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
         # Fact 2: Needs review (or pinned); with evidence_snippet
         if facts_to_create >= 2:
             quote2 = "Arctic sea ice has declined by 13% per decade since 1979"
-            start2 = sample_content.find(quote2)
+            start2, end2 = _compute_evidence_offsets(sample_content, quote2, "E2E:APPROVED-2/PINNED-1")
             snippet2 = "Key Findings: Arctic sea ice has declined by 13% per decade since 1979. Ocean acidification has increased by 30% since industrial revolution."
             # Make fact2 APPROVED if with_approved_facts (for generate-from-approved test)
             fact2_status = ReviewStatus.APPROVED if with_approved else ReviewStatus.NEEDS_REVIEW
@@ -231,13 +268,12 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
                 project_id=project_id,
                 source_doc_id=source_id,
                 type=NodeType.FACT,
-                fact_text=f"Climate research indicates Arctic sea ice has declined by 13% per decade since 1979 [E2E_APPROVED_2]" if with_approved else "Climate research indicates Arctic sea ice has declined by 13% per decade since 1979 [E2E_PINNED_1]",
+                fact_text="[E2E:APPROVED-2] Climate research indicates Arctic sea ice has declined by 13% per decade since 1979" if with_approved else "[E2E:PINNED-1] Climate research indicates Arctic sea ice has declined by 13% per decade since 1979",
                 quote_text_raw=quote2,
                 evidence_snippet=snippet2,
-                evidence_start_char_raw=start2 if start2 != -1 else None,
-                evidence_end_char_raw=start2 + len(quote2) if start2 != -1 else None,
+                evidence_start_char_raw=start2,
+                evidence_end_char_raw=end2,
                 confidence_score=85 if with_approved else 65,
-                integrity_status=IntegrityStatus.VERIFIED if with_approved else IntegrityStatus.NEEDS_REVIEW,
                 review_status=fact2_status,
                 is_key_claim=True if with_approved else False,
                 is_pinned=pin_facts,
@@ -250,60 +286,81 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
         # Fact 3: High confidence, approved (or FLAGGED when with_review_queue); with evidence_snippet
         if facts_to_create >= 3:
             quote3 = "Ocean acidification has increased by 30% since industrial revolution"
-            start3 = sample_content.find(quote3)
+            start3, end3 = _compute_evidence_offsets(sample_content, quote3, "E2E:APPROVED-3/FLAGGED-1")
             snippet3 = "Key Findings: Arctic sea ice has declined by 13% per decade since 1979. Ocean acidification has increased by 30% since industrial revolution. Extreme weather events are becoming more frequent."
             fact3 = ResearchNode(
                 id=uuid4(),  # Not a special anchor, but still deterministic per seed
                 project_id=project_id,
                 source_doc_id=source_id,
                 type=NodeType.FACT,
-                fact_text="Ocean research confirms acidification has increased by 30% since industrial revolution",
+                fact_text="[E2E:FLAGGED-1] Ocean research confirms acidification has increased by 30% since industrial revolution" if review_queue else "[E2E:APPROVED-3] Ocean research confirms acidification has increased by 30% since industrial revolution",
                 quote_text_raw=quote3,
                 evidence_snippet=snippet3,
-                evidence_start_char_raw=start3 if start3 != -1 else None,
-                evidence_end_char_raw=start3 + len(quote3) if start3 != -1 else None,
+                evidence_start_char_raw=start3,
+                evidence_end_char_raw=end3,
                 confidence_score=88,
-                integrity_status=IntegrityStatus.VERIFIED,
                 review_status=ReviewStatus.FLAGGED if review_queue else ReviewStatus.APPROVED,
                 is_key_claim=True
             )
             db.add(fact3)
 
-        # 4b. One fact from second source (mixed-source / builder E2E); with evidence_snippet
+        # 4b. One fact from second source (mixed-source / builder E2E); with evidence_snippet + quote/offsets
+        # Offsets computed from source2_content (same var used for SourceDoc) so highlighter matches persisted content
+        quote4 = "Additional context for E2E."
+        start4, end4 = _compute_evidence_offsets(source2_content, quote4, "E2E:PENDING-1/NEEDS_REVIEW-2")
         fact4 = ResearchNode(
             project_id=project_id,
             source_doc_id=source2_id,
             type=NodeType.FACT,
-            fact_text="Additional research context for E2E mixed-source tests.",
+            fact_text="[E2E:PENDING-1] Additional research context for E2E mixed-source tests." if not review_queue else "[E2E:NEEDS_REVIEW-2] Additional research context for E2E mixed-source tests.",
+            quote_text_raw=quote4,
             evidence_snippet="Additional research context for E2E. Second source excerpt for evidence panel.",
+            evidence_start_char_raw=start4,
+            evidence_end_char_raw=end4,
             confidence_score=80,
-            integrity_status=IntegrityStatus.VERIFIED,
             review_status=ReviewStatus.NEEDS_REVIEW if review_queue else ReviewStatus.PENDING,
             is_key_claim=False,
         )
         db.add(fact4)
 
         # 4b1. Kitchen sink: one NEEDS_REVIEW fact with marker for facts-group-sort E2E
+        quote_needs_review = "Paris Agreement aims to limit warming to well below 2°C"
+        start_needs_review, end_needs_review = _compute_evidence_offsets(
+            sample_content, quote_needs_review, "E2E:NEEDS_REVIEW-1"
+        )
         fact_needs_review = ResearchNode(
             project_id=project_id,
             source_doc_id=source_id,
             type=NodeType.FACT,
-            fact_text="Paris Agreement aims to limit warming to well below 2°C [E2E_NEEDS_REVIEW_1]",
-            quote_text_raw="Paris Agreement aims to limit warming to well below 2°C",
+            fact_text="[E2E:NEEDS_REVIEW-1] Paris Agreement aims to limit warming to well below 2°C",
+            quote_text_raw=quote_needs_review,
             evidence_snippet="The Paris Agreement aims to limit warming to well below 2°C, preferably 1.5°C.",
+            evidence_start_char_raw=start_needs_review,
+            evidence_end_char_raw=end_needs_review,
             confidence_score=70,
-            integrity_status=IntegrityStatus.NEEDS_REVIEW,
             review_status=ReviewStatus.NEEDS_REVIEW,
             is_key_claim=False,
         )
         db.add(fact_needs_review)
 
+        # 4b1b. One fact with no evidence_snippet (for evidence-snippet E2E "when snippet missing")
+        fact_no_snippet = ResearchNode(
+            project_id=project_id,
+            source_doc_id=source_id,
+            type=NodeType.FACT,
+            fact_text="[E2E:NO_SNIPPET-1] Supplementary climate observation with no excerpt captured.",
+            confidence_score=60,
+            review_status=ReviewStatus.PENDING,
+            is_key_claim=False,
+        )
+        db.add(fact_no_snippet)
+
         # 4b2. Optional token-similar facts (for collapse-similar E2E)
         if getattr(payload, "with_similar_facts", False):
             # Pair 1: "X is Y" vs "X is actually Y" (high Jaccard) - APPROVED for cluster-preview E2E
             for text in [
-                "Arctic research shows sea ice has declined by 13 percent per decade since 1979",
-                "Arctic research shows sea ice has declined by 13% per decade since 1979",
+                "[E2E:SIMILAR-1] Arctic research shows sea ice has declined by 13 percent per decade since 1979",
+                "[E2E:SIMILAR-2] Arctic research shows sea ice has declined by 13% per decade since 1979",
             ]:
                 fn = ResearchNode(
                     project_id=project_id,
@@ -311,15 +368,14 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
                     type=NodeType.FACT,
                     fact_text=text,
                     confidence_score=70,
-                    integrity_status=IntegrityStatus.VERIFIED,
                     review_status=ReviewStatus.APPROVED,
                     is_key_claim=False,
                 )
                 db.add(fn)
             # Pair 2: Reddit-style paraphrased comments - APPROVED
             for text in [
-                "Climate research shows change is driven mainly by human activity and emissions",
-                "Climate research shows change is mainly driven by human activities and greenhouse gas emissions",
+                "[E2E:SIMILAR-3] Climate research shows change is driven mainly by human activity and emissions",
+                "[E2E:SIMILAR-4] Climate research shows change is mainly driven by human activities and greenhouse gas emissions",
             ]:
                 fn = ResearchNode(
                     project_id=project_id,
@@ -329,24 +385,37 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
                     section_context="reddit:comment:c_sim",
                     source_url="https://reddit.com/r/test/comments/abc123/c_sim/",
                     confidence_score=75,
-                    integrity_status=IntegrityStatus.VERIFIED,
                     review_status=ReviewStatus.APPROVED,
                     is_key_claim=False,
                 )
                 db.add(fn)
+            # Source B fact: ensures 2 groups when grouped by source (collapse+grouped E2E)
+            fn_b = ResearchNode(
+                project_id=project_id,
+                source_doc_id=source2_id,
+                type=NodeType.FACT,
+                fact_text="[E2E:APPROVED-5] Additional research context for E2E second-source group.",
+                confidence_score=85,
+                review_status=ReviewStatus.APPROVED,
+                is_key_claim=False,
+            )
+            db.add(fn_b)
             db.flush()
 
         # 4c. Optional near-duplicate of fact1 (for dedup E2E)
         if payload.with_near_duplicate and facts_to_create >= 1:
+            quote_dup = "global temperatures have risen by approximately 1.1°C since pre-industrial times"
+            start_dup, end_dup = _compute_evidence_offsets(sample_content, quote_dup, "E2E:DUPLICATE-1")
             fact1_dup = ResearchNode(
                 project_id=project_id,
                 source_doc_id=source_id,
                 type=NodeType.FACT,
-                fact_text="Climate research shows global temperatures have risen by approximately 1.1 degrees Celsius since pre-industrial times.",
-                quote_text_raw="global temperatures have risen by approximately 1.1°C since pre-industrial times",
+                fact_text="[E2E:DUPLICATE-1] Climate research shows global temperatures have risen by approximately 1.1 degrees Celsius since pre-industrial times.",
+                quote_text_raw=quote_dup,
                 evidence_snippet="Recent studies indicate that global temperatures have risen by approximately 1.1°C since pre-industrial times.",
+                evidence_start_char_raw=start_dup,
+                evidence_end_char_raw=end_dup,
                 confidence_score=90,
-                integrity_status=IntegrityStatus.VERIFIED,
                 review_status=ReviewStatus.PENDING,
                 is_key_claim=False,
             )
@@ -361,7 +430,6 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
                 type=NodeType.FACT,
                 fact_text=f"Bulk fact #{i + 5} for virtualization E2E. Climate research supplementary point.",
                 confidence_score=50 + (i % 45),
-                integrity_status=IntegrityStatus.VERIFIED,
                 review_status=ReviewStatus.APPROVED if i % 3 == 0 else ReviewStatus.PENDING,
                 is_key_claim=(i % 5 == 0),
             )
@@ -393,7 +461,7 @@ Scientists emphasize the need for immediate action to reduce emissions and trans
         # Query back the actual facts to verify seed worked
         facts = db.exec(select(ResearchNode).where(ResearchNode.project_id == project_id)).all()
         
-        similar_count = 4 if getattr(payload, "with_similar_facts", False) else 0
+        similar_count = 5 if getattr(payload, "with_similar_facts", False) else 0  # 4 similar + 1 source B
         actual_facts_count = len(facts)
         approved_count = sum(1 for f in facts if f.review_status == ReviewStatus.APPROVED)
         pinned_count = sum(1 for f in facts if f.is_pinned)
@@ -532,7 +600,6 @@ def seed_sources(payload: SeedSourcesRequest, db: Session = Depends(get_session)
                         quote_text_raw=op_quote,
                         evidence_snippet=op_quote,
                         confidence_score=85,
-                        integrity_status=IntegrityStatus.VERIFIED,
                         review_status=ReviewStatus.PENDING,
                     )
                     db.add(fn)
@@ -546,7 +613,6 @@ def seed_sources(payload: SeedSourcesRequest, db: Session = Depends(get_session)
                         source_url=permalink,
                         evidence_snippet=f"Comment {cid} excerpt.",
                         confidence_score=80,
-                        integrity_status=IntegrityStatus.VERIFIED,
                         review_status=ReviewStatus.PENDING,
                     )
                     db.add(fn)
@@ -618,7 +684,6 @@ def seed_sources(payload: SeedSourcesRequest, db: Session = Depends(get_session)
                         source_url=video_url,
                         evidence_snippet=f"Transcript {start}-{end}s excerpt.",
                         confidence_score=82,
-                        integrity_status=IntegrityStatus.VERIFIED,
                         review_status=ReviewStatus.PENDING,
                     )
                     db.add(fn)
@@ -681,7 +746,6 @@ def seed_sources(payload: SeedSourcesRequest, db: Session = Depends(get_session)
                     type=NodeType.FACT,
                     fact_text="Web demo fact for E2E.",
                     confidence_score=80,
-                    integrity_status=IntegrityStatus.VERIFIED,
                     review_status=ReviewStatus.PENDING,
                 )
                 db.add(fn)
@@ -740,7 +804,6 @@ def seed_sources(payload: SeedSourcesRequest, db: Session = Depends(get_session)
                     type=NodeType.FACT,
                     fact_text="Sentinel fact for E2E source-retry (failed job).",
                     confidence_score=70,
-                    integrity_status=IntegrityStatus.VERIFIED,
                     review_status=ReviewStatus.PENDING,
                 )
                 db.add(fn)

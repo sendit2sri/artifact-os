@@ -5,71 +5,10 @@
 
 import { expect, type Page, type BrowserContext } from '@playwright/test';
 
-export interface WaitForAppIdleOptions {
-  timeout?: number;
-  /** If false, only wait for query idle (not jobs). Use for pages that expect active jobs. Default true. */
-  requireNoActiveJobs?: boolean;
-}
-
-/**
- * Wait for Providers to mount and expose __e2e.waitForIdle.
- * Uses waitForFunction (same as preflight) to tolerate useEffect/hydration timing.
- */
-async function waitForE2EControls(page: Page, _timeoutMs: number): Promise<void> {
-  const url = page.url();
-  console.log('[waitForE2EControls] page.url:', url);
-
-  await page.waitForLoadState('domcontentloaded');
-
-  await page.waitForFunction(
-    () =>
-      document.documentElement.getAttribute('data-e2e') === 'true' &&
-      typeof (window as any).__e2e !== 'undefined' &&
-      typeof (window as any).__e2e?.waitForIdle === 'function',
-    null,
-    { timeout: 15000 }
-  );
-}
-
-/**
- * Wait for app to be idle (no pending React Query fetches/mutations; optionally no active jobs).
- * Uses window.__e2e.waitForIdle() exposed in E2E mode.
- * gotoProject uses requireNoActiveJobs: false; fact-list tests use true.
- */
-export async function waitForAppIdle(
-  page: Page,
-  timeoutOrOpts: number | WaitForAppIdleOptions = 10000
-): Promise<void> {
-  const opts = typeof timeoutOrOpts === 'number'
-    ? { timeout: timeoutOrOpts, requireNoActiveJobs: true }
-    : { timeout: 10000, requireNoActiveJobs: true, ...timeoutOrOpts };
-  const timeoutMs = opts.timeout ?? 10000;
-
-  // Wait briefly for Providers to mount + expose __e2e
-  await waitForE2EControls(page, Math.min(3000, timeoutMs));
-
-  await expect(async () => {
-    const result = await page.evaluate(
-      (o: { timeout: number; requireNoActiveJobs: boolean }) => {
-        const e2e = (window as any).__e2e;
-        if (!e2e || typeof e2e.waitForIdle !== 'function') {
-          return { success: false, error: '__e2e.waitForIdle not available yet' };
-        }
-        const arg = o.requireNoActiveJobs
-          ? { timeout: o.timeout, requireNoActiveJobs: true }
-          : { timeout: o.timeout, requireNoActiveJobs: false };
-
-        return e2e
-          .waitForIdle(arg)
-          .then(() => ({ success: true }))
-          .catch((err: Error) => ({ success: false, error: err.message }));
-      },
-      { timeout: timeoutMs, requireNoActiveJobs: opts.requireNoActiveJobs }
-    );
-
-    if (!result.success) throw new Error(result.error || 'App not idle');
-  }).toPass({ timeout: timeoutMs + 1000 });
-}
+export {
+  waitForAppIdle,
+  type WaitForAppIdleOptions,
+} from './idle';
 
 /**
  * Get E2E state for debugging failed tests. Call when a test fails to print diagnostics.

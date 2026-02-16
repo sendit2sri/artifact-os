@@ -26,7 +26,7 @@ test.describe('Facts sort and group', () => {
     const factCards = page.getByTestId('fact-card');
     await expect(factCards.first()).toBeVisible({ timeout: 5000 });
     const firstCard = factCards.first();
-    await expect(firstCard).toContainText(/Needs review|needs review|E2E_NEEDS_REVIEW_1/i);
+    await expect(firstCard).toContainText(/Needs review|needs review|E2E:NEEDS_REVIEW-1/i);
   });
 
   test('enable Group by Source: group sections appear with correct domains', async ({

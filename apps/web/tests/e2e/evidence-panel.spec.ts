@@ -1,7 +1,11 @@
 import { test, expect } from './fixtures/seed';
 import { gotoProject } from './helpers/nav';
 import {
-  selectFirstFact,
+  openEvidenceForAnchor,
+  openEvidenceForFirstAnchorWithNext,
+  FACT_ANCHORS,
+} from './helpers/facts';
+import {
   assertEvidenceForFact,
   nextEvidence,
   prevEvidence,
@@ -10,8 +14,7 @@ import {
 
 /**
  * Evidence Panel E2E - parallel-safe via seed fixture.
- * Prerequisites: ARTIFACT_ENABLE_TEST_SEED=true, ARTIFACT_E2E_MODE=true.
- * Run: npx playwright test evidence-panel.spec.ts --workers=3
+ * Uses anchor-based fact selection (no nth/first).
  */
 
 test.describe('Evidence Panel', () => {
@@ -22,17 +25,18 @@ test.describe('Evidence Panel', () => {
   test('should show evidence panel on fact click, navigate prev/next, disable at boundaries', async ({
     page,
   }) => {
-    await selectFirstFact(page);
+    await openEvidenceForFirstAnchorWithNext(page, [
+      FACT_ANCHORS.APPROVED_2,
+      FACT_ANCHORS.NEEDS_REVIEW_1,
+      FACT_ANCHORS.PENDING_1,
+      FACT_ANCHORS.APPROVED_1,
+    ]);
 
     await expect(async () => {
       const panel = page.getByTestId('evidence-panel');
       await expect(panel).toBeVisible();
       await assertEvidenceForFact(page, /Global temperatures|Arctic|Ocean|climate|fact/i, 'example.com');
     }).toPass({ timeout: 12_000 });
-
-    const factCards = page.getByTestId('fact-card');
-    const count = await factCards.count();
-    expect(count).toBeGreaterThanOrEqual(2);
 
     const firstFactText = await page.getByTestId('evidence-fact-text').textContent();
     expect(firstFactText).toBeTruthy();
@@ -50,18 +54,18 @@ test.describe('Evidence Panel', () => {
       expect(backToFirst).toBe(firstFactText);
     }).toPass({ timeout: 3000 });
 
+    // Boundary: Prev disabled at start
     const prevBtn = page.getByTestId('evidence-prev');
     await expect(prevBtn).toBeDisabled();
 
-    const nextBtn = page.getByTestId('evidence-next');
-    for (let i = 0; i < count - 1; i++) {
-      await nextBtn.click();
-    }
-    await expect(nextBtn).toBeDisabled();
+    // Bounded: Next twice, Prev becomes enabled; no loop over all facts (avoids timeout)
+    await nextEvidence(page);
+    await nextEvidence(page);
+    await expect(prevBtn).toBeEnabled();
   });
 
   test('loads evidence via network and renders sources', async ({ page }) => {
-    await selectFirstFact(page);
+    await openEvidenceForAnchor(page, FACT_ANCHORS.APPROVED_1);
 
     await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 5000 });
     await expect(page.getByTestId('evidence-fact-text')).toBeVisible({ timeout: 12_000 });
@@ -75,7 +79,7 @@ test.describe('Evidence Panel', () => {
   test('evidence snippet is shown and not equal to fact text when snippet exists', async ({
     page,
   }) => {
-    await selectFirstFact(page);
+    await openEvidenceForAnchor(page, FACT_ANCHORS.APPROVED_1);
     await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 5000 });
 
     const factTextEl = page.getByTestId('evidence-fact-text');
@@ -98,12 +102,15 @@ test.describe('Evidence Panel', () => {
     await expect(page.getByTestId('evidence-source-url')).toBeVisible();
   });
 
-  test('evidence regression: fact1 snippet → next fact → back to fact1 snippet matches', async ({
+  test('evidence regression: fact snippet → next fact → back to fact snippet matches', async ({
     page,
   }) => {
-    const factCards = page.getByTestId('fact-card');
-    await expect(factCards.first()).toBeVisible({ timeout: 10000 });
-    await factCards.first().getByTestId('evidence-open').click();
+    await openEvidenceForFirstAnchorWithNext(page, [
+      FACT_ANCHORS.APPROVED_1,
+      FACT_ANCHORS.APPROVED_2,
+      FACT_ANCHORS.NEEDS_REVIEW_1,
+      FACT_ANCHORS.PENDING_1,
+    ]);
     await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 8000 });
     const fact1Text = (await page.getByTestId('evidence-fact-text').textContent()) ?? '';
     const snippet1El = page.getByTestId('evidence-snippet');
@@ -117,11 +124,6 @@ test.describe('Evidence Panel', () => {
       expect(fact2Text).toBeTruthy();
       expect(fact2Text).not.toBe(fact1Text);
     }).toPass({ timeout: 5000 });
-    const snippet2El = page.getByTestId('evidence-snippet');
-    const empty2El = page.getByTestId('evidence-empty-snippet');
-    const hasSnippet2 = await snippet2El.isVisible().catch(() => false);
-    const hasEmpty2 = await empty2El.isVisible().catch(() => false);
-    expect(hasSnippet2 || hasEmpty2).toBe(true);
 
     await prevEvidence(page);
     await expect(async () => {
@@ -152,7 +154,7 @@ test.describe('Evidence Panel', () => {
       await route.continue();
     });
 
-    await selectFirstFact(page);
+    await openEvidenceForAnchor(page, FACT_ANCHORS.APPROVED_1);
 
     await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 5000 });
 

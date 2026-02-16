@@ -1,0 +1,11 @@
+{
+  "services": {
+    "web": {
+      "environment": {
+        "NEXT_PUBLIC_E2E_MODE": "TRUE",
+        "NEXT_PUBLIC_ENABLE_TEST_SEED": "True"
+      },
+      "volumes": []
+    }
+  }
+}

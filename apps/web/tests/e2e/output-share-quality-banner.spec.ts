@@ -8,6 +8,7 @@ import { test, expect } from './fixtures/seed';
 import {
   generateSynthesis,
   assertDrawerSuccess,
+  waitForAppIdle,
 } from './helpers/synthesis';
 import { gotoProject } from './helpers/nav';
 
@@ -23,6 +24,7 @@ test.describe('Output Share Quality Banner', () => {
     const result = await generateSynthesis(page, seed.project_id);
     expect(result).toBe('drawer');
     await assertDrawerSuccess(page);
+    await waitForAppIdle(page);
 
     const banner = page.getByTestId('output-quality-banner');
     await expect(banner).toBeVisible({ timeout: 5000 });
@@ -33,6 +35,7 @@ test.describe('Output Share Quality Banner', () => {
     expect(href).toMatch(/\/output\/[a-f0-9-]+/);
 
     await page.goto(href!);
+    await waitForAppIdle(page);
 
     await expect(page.getByTestId('output-page')).toBeVisible({ timeout: 5000 });
     const pageBanner = page.getByTestId('output-page-quality-banner');

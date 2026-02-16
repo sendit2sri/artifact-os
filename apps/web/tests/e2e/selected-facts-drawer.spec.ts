@@ -20,11 +20,13 @@ test.describe('Selected Facts Drawer', () => {
 
   test('open drawer, assert count and items, remove one, count updates', async ({ page }) => {
     await switchToAllDataView(page);
-    const factCards = page.getByTestId('fact-card');
-    await expect(factCards.first()).toBeVisible({ timeout: 10000 });
-    await factCards.nth(0).getByTestId('fact-select-button').click();
-    await factCards.nth(1).getByTestId('fact-select-button').click();
-    await factCards.nth(2).getByTestId('fact-select-button').click();
+    const card1 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-1]' });
+    const card2 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-2]' });
+    const card3 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-3]' });
+    await expect(card1).toBeVisible({ timeout: 10000 });
+    await card1.getByTestId('fact-select-button').click();
+    await card2.getByTestId('fact-select-button').click();
+    await card3.getByTestId('fact-select-button').click();
 
     await openSelectedFactsDrawer(page);
 

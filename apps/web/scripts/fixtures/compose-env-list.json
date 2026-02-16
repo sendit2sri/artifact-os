@@ -1,0 +1,12 @@
+{
+  "services": {
+    "web": {
+      "environment": [
+        "NEXT_PUBLIC_E2E_MODE=true",
+        "NEXT_PUBLIC_ENABLE_TEST_SEED=true",
+        "OTHER=ignored"
+      ],
+      "volumes": ["./apps/web:/app", "/tmp/other:/tmp"]
+    }
+  }
+}

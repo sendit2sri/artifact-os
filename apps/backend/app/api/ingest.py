@@ -64,6 +64,7 @@ def ingest_url(payload: IngestURLRequest, db: Session = Depends(get_session)):
                 params={"url": payload.url, "source_type": source_type.value, "canonical_url": canonical},
                 result_summary={
                     "is_duplicate": True,
+                    "source_id": str(existing_doc.id),
                     "message": "Already added",
                     "source_title": existing_doc.title or canonical,
                 },
