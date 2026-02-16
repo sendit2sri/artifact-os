@@ -18,7 +18,6 @@ export interface AddSourceSheetProps {
     setSelectedFile: (f: File | null) => void;
     addUrlError: string | null;
     isValidUrl: boolean;
-    isDuplicate: boolean;
     onAddUrl: () => void;
     onUpload: () => void;
     isAddPending: boolean;
@@ -37,7 +36,6 @@ export function AddSourceSheet({
     setSelectedFile,
     addUrlError,
     isValidUrl,
-    isDuplicate,
     onAddUrl,
     onUpload,
     isAddPending,
@@ -87,7 +85,7 @@ export function AddSourceSheet({
                                     placeholder="Paste a source URL..."
                                     value={urlInput}
                                     onChange={handleUrlChange}
-                                    className={cn("h-9 text-sm bg-muted/30 border-border/80 placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30", isDuplicate && "text-warning")}
+                                    className="h-9 text-sm bg-muted/30 border-border/80 placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30"
                                 />
                                 {(addUrlError || (urlInput.trim() && !isValidUrl)) && (
                                     <p className="text-xs text-destructive">
@@ -101,7 +99,7 @@ export function AddSourceSheet({
                                 size="sm"
                                 className="w-full h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium focus-visible:ring-2 focus-visible:ring-ring/30"
                                 onClick={onAddUrl}
-                                disabled={isAddPending || !isValidUrl || isDuplicate}
+                                disabled={isAddPending || !isValidUrl}
                             >
                                 {isAddPending ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />

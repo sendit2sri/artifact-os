@@ -12,6 +12,7 @@ import {
   selectTwoFacts,
   clickGenerate,
   ensureOutputDrawerAfterGenerate,
+  waitForAppIdle,
 } from './helpers/synthesis';
 import {
   openOutputsHistory,
@@ -31,12 +32,14 @@ test.describe('Output Diff', () => {
     await setSynthesisFormat(page, 'paragraph');
     await clickGenerate(page);
     await ensureOutputDrawerAfterGenerate(page, 'merge');
+    await waitForAppIdle(page);
     await closeDrawer(page);
 
     await selectTwoFacts(page);
     await setSynthesisFormat(page, 'script_outline');
     await clickGenerate(page);
     await ensureOutputDrawerAfterGenerate(page, 'merge');
+    await waitForAppIdle(page);
     await closeDrawer(page);
 
     await openOutputsHistory(page);
@@ -47,16 +50,9 @@ test.describe('Output Diff', () => {
     await compareBtn.click();
 
     await expect(page.getByTestId('outputs-compare-drawer')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId('outputs-compare-select-a')).toBeVisible();
-    await expect(page.getByTestId('outputs-compare-select-b')).toBeVisible();
-
-    await page.getByTestId('outputs-compare-select-a').click();
-    await page.getByRole('option').nth(0).click();
-    await page.getByTestId('outputs-compare-select-b').click();
-    await page.getByRole('option').nth(1).click();
-
+    // Compare drawer auto-loads default A and B from history; wait for diff to appear
     await expect(
-      page.getByTestId('diff-line-added').or(page.getByTestId('diff-line-removed'))
+      page.getByTestId('diff-line-added').or(page.getByTestId('diff-line-removed')).first()
     ).toBeVisible({ timeout: 15000 });
   });
 });

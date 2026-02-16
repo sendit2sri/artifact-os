@@ -45,14 +45,14 @@ test.describe('Seed Contract (Canary Test) @nightly', () => {
     expect(factCount, `UI shows ${factCount} facts, expected >= 8`).toBeGreaterThanOrEqual(8);
     
     // Check approved facts exist (look for anchor text)
-    const approved1 = factCards.filter({ hasText: '[E2E_APPROVED_1]' });
+    const approved1 = factCards.filter({ hasText: '[E2E:APPROVED-1]' });
     await expect(approved1).toBeVisible({ timeout: 5000 });
     
-    const approved2 = factCards.filter({ hasText: '[E2E_APPROVED_2]' });
+    const approved2 = factCards.filter({ hasText: '[E2E:APPROVED-2]' });
     await expect(approved2).toBeVisible({ timeout: 5000 });
     
-    // Check pinned fact exists (E2E_APPROVED_1 is pinned in kitchen sink)
-    const approved1Card = factCards.filter({ hasText: '[E2E_APPROVED_1]' });
+    // Check pinned fact exists ([E2E:APPROVED-1] is pinned in kitchen sink)
+    const approved1Card = factCards.filter({ hasText: '[E2E:APPROVED-1]' });
     await expect(approved1Card.locator('[data-testid="fact-pin-state"][data-pinned="true"]')).toHaveCount(1);
     
     // 5. Verify E2E mode is active

@@ -90,7 +90,19 @@ test.beforeEach(async ({ page }) => {
 
 ---
 
-### 4. Simplified Evidence Navigation
+### 4. E2E Compose: No Bind Mounts
+
+**Problem**: Base `docker-compose.yml` mounts `./apps/web:/app` for dev hot-reload. If that carries into E2E, the host source overrides the built `.next` in the image, so SSR sees wrong/missing env and `data-e2e` is null.
+
+**Solution**: `docker-compose.e2e.yml` uses `volumes: !reset []` to clear base volumes. E2E web container runs the built image only — no host mount.
+
+**Preflight guard**: Preflight fails fast with a clear message if `data-e2e` is missing, pointing to this fix.
+
+**Files**: `docker-compose.e2e.yml`, `apps/web/scripts/e2e-preflight.js`
+
+---
+
+### 5. Simplified Evidence Navigation
 
 **Problem**: Complex text-change assertions in `nextEvidence()`/`prevEvidence()` caused timeouts at boundaries or during virtualization.
 

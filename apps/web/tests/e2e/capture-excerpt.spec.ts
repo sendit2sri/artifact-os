@@ -46,7 +46,7 @@ test.describe('Capture Excerpt @release-gate', () => {
     const factCards = page.getByTestId('fact-card');
     await expect(factCards.first()).toBeVisible({ timeout: 10000 });
 
-    const factCard = factCards.filter({ hasText: 'E2E_APPROVED_1' }).first();
+    const factCard = factCards.filter({ hasText: '[E2E:APPROVED-1]' }).first();
     await expect(factCard).toBeVisible({ timeout: 5000 });
     await factCard.getByTestId('evidence-open').click();
 
@@ -112,7 +112,7 @@ test.describe('Capture Excerpt highlight @nightly', () => {
     const factCards = page.getByTestId('fact-card');
     await expect(factCards.first()).toBeVisible({ timeout: 10000 });
 
-    const factCard = factCards.filter({ hasText: 'E2E_APPROVED_1' }).first();
+    const factCard = factCards.filter({ hasText: '[E2E:APPROVED-1]' }).first();
     await expect(factCard).toBeVisible({ timeout: 5000 });
     await factCard.getByTestId('evidence-open').click();
 

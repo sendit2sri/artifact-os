@@ -18,11 +18,11 @@ export function getFactById(page: Page, factId: string): Locator {
 }
 
 /**
- * Get a fact card by its anchor text (E2E_APPROVED_1, etc.).
+ * Get a fact card by its anchor text ([E2E:APPROVED-1], etc.).
  * More readable than IDs in test code, but less stable if text changes.
- * 
+ *
  * @example
- * const approvedCard = getFactByAnchor(page, 'E2E_APPROVED_1');
+ * const approvedCard = getFactByAnchor(page, 'E2E:APPROVED-1');
  * await expect(approvedCard).toBeVisible();
  */
 export function getFactByAnchor(page: Page, anchor: string): Locator {
@@ -31,16 +31,21 @@ export function getFactByAnchor(page: Page, anchor: string): Locator {
 
 /**
  * Known fact anchors from kitchen sink seed.
- * These anchors are embedded in fact_text and are stable across seed runs.
+ * Format: [E2E:{STATUS}-{INDEX}] - embedded in fact_text, stable across seed runs.
  */
 export const FACT_ANCHORS = {
-  APPROVED_1: 'E2E_APPROVED_1',
-  APPROVED_2: 'E2E_APPROVED_2',
-  PINNED_1: 'E2E_PINNED_1',
-  DUPLICATE_ORIGINAL: 'E2E_DUPLICATE_ORIGINAL',
-  DUPLICATE_SUPPRESSED: 'E2E_DUPLICATE_SUPPRESSED',
-  SIMILAR_REP: 'E2E_SIMILAR_REP',
-  NO_SNIPPET: 'E2E_NO_SNIPPET',
+  APPROVED_1: 'E2E:APPROVED-1',
+  APPROVED_2: 'E2E:APPROVED-2',
+  APPROVED_3: 'E2E:APPROVED-3',
+  PINNED_1: 'E2E:PINNED-1',
+  NEEDS_REVIEW_1: 'E2E:NEEDS_REVIEW-1',
+  NEEDS_REVIEW_2: 'E2E:NEEDS_REVIEW-2',
+  PENDING_1: 'E2E:PENDING-1',
+  FLAGGED_1: 'E2E:FLAGGED-1',
+  DUPLICATE_1: 'E2E:DUPLICATE-1',
+  SIMILAR_1: 'E2E:SIMILAR-1',
+  SIMILAR_2: 'E2E:SIMILAR-2',
+  NO_SNIPPET_1: 'E2E:NO_SNIPPET-1',
 } as const;
 
 /**

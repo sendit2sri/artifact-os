@@ -14,14 +14,16 @@ test.describe('Selected only', () => {
     page,
   }) => {
     await switchToAllDataView(page);
-    const cards = page.getByTestId('fact-card');
-    await expect(cards.first()).toBeVisible({ timeout: 5000 });
-    const countBefore = await cards.count();
+    const card1 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-1]' });
+    const card2 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-2]' });
+    const card3 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-3]' });
+    await expect(card1).toBeVisible({ timeout: 5000 });
+    const countBefore = await page.getByTestId('fact-card').count();
     expect(countBefore).toBeGreaterThanOrEqual(3);
 
-    await cards.nth(0).getByTestId('fact-select-button').click();
-    await cards.nth(1).getByTestId('fact-select-button').click();
-    await cards.nth(2).getByTestId('fact-select-button').click();
+    await card1.getByTestId('fact-select-button').click();
+    await card2.getByTestId('fact-select-button').click();
+    await card3.getByTestId('fact-select-button').click();
 
     await page.getByTestId('facts-selected-only-toggle').check();
     await expect(async () => {

@@ -2,6 +2,9 @@
 
 Start here: [[README]] — buckets and naming.
 
+## Project Summary (for AI / next implementations)
+- [[PROJECT_SUMMARY_FOR_GEMINI]] 📋 — Whole project summary: features, fixes, E2E gaps, next steps
+
 ## Docs Rules
 
 - [[misc/docs-rules]] — no root .md except README/QUICK_START; where to put new docs; index links.

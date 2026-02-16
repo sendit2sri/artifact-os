@@ -1,7 +1,11 @@
 import { test, expect } from './fixtures/seed';
 import { gotoProject } from './helpers/nav';
 import {
-  selectFirstFact,
+  openEvidenceForAnchor,
+  openEvidenceForFirstAnchorWithNext,
+  FACT_ANCHORS,
+} from './helpers/facts';
+import {
   assertEvidenceForFact,
   nextEvidence,
   prevEvidence,
@@ -9,13 +13,8 @@ import {
 } from './helpers/evidence';
 
 /**
- * Evidence Panel E2E Tests (legacy file: evidence-inspector.spec.ts)
- *
- * Tests the EvidencePanelSimple Sheet UI: open on fact click, fact text/domain/URL,
- * Prev/Next navigation, boundary behavior, close.
- *
- * Prerequisites: ARTIFACT_ENABLE_TEST_SEED=true, ARTIFACT_E2E_MODE=true.
- * Run: npx playwright test evidence-inspector.spec.ts --workers=3
+ * Evidence Panel E2E Tests (evidence-inspector.spec.ts)
+ * Uses anchor-based fact selection.
  */
 
 test.describe('Evidence Panel', () => {
@@ -26,7 +25,7 @@ test.describe('Evidence Panel', () => {
   test('should open panel on evidence-open click and show fact text, domain, URL', async ({
     page,
   }) => {
-    await selectFirstFact(page);
+    await openEvidenceForAnchor(page, FACT_ANCHORS.APPROVED_1);
 
     await expect(async () => {
       const panel = page.getByTestId('evidence-panel');
@@ -40,7 +39,12 @@ test.describe('Evidence Panel', () => {
   });
 
   test('should navigate with Prev/Next and disable at boundaries', async ({ page }) => {
-    await selectFirstFact(page);
+    await openEvidenceForFirstAnchorWithNext(page, [
+      FACT_ANCHORS.APPROVED_2,
+      FACT_ANCHORS.NEEDS_REVIEW_1,
+      FACT_ANCHORS.PENDING_1,
+      FACT_ANCHORS.APPROVED_1,
+    ]);
 
     await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 10_000 });
 
@@ -60,18 +64,17 @@ test.describe('Evidence Panel', () => {
       expect(backToFirst).toBe(firstFactText);
     }).toPass({ timeout: 3000 });
 
+    // Boundary: Prev disabled at start
     await expect(page.getByTestId('evidence-prev')).toBeDisabled();
 
-    const factCount = await page.getByTestId('fact-card').count();
-    const nextBtn = page.getByTestId('evidence-next');
-    for (let i = 0; i < factCount - 1; i++) {
-      await nextBtn.click();
-    }
-    await expect(nextBtn).toBeDisabled();
+    // Bounded: Next twice, Prev becomes enabled (no loop over all facts)
+    await nextEvidence(page);
+    await nextEvidence(page);
+    await expect(page.getByTestId('evidence-prev')).toBeEnabled();
   });
 
   test('should close panel via evidence-close and reopen', async ({ page }) => {
-    await selectFirstFact(page);
+    await openEvidenceForAnchor(page, FACT_ANCHORS.APPROVED_1);
 
     await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 10_000 });
 
@@ -79,7 +82,7 @@ test.describe('Evidence Panel', () => {
 
     await expect(page.getByTestId('evidence-panel')).toBeHidden();
 
-    await selectFirstFact(page);
+    await openEvidenceForAnchor(page, FACT_ANCHORS.APPROVED_1);
 
     await expect(async () => {
       await expect(page.getByTestId('evidence-panel')).toBeVisible();

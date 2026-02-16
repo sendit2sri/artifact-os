@@ -1,12 +1,15 @@
 /**
- * Worker-scoped seed fixture. Runs once per worker; uses Playwright workerInfo
- * for deterministic project_id/source_id. No env var or file dependency.
+ * Per-test seed fixture. Seeds before each test (reset:true) for deterministic DB state.
+ * Uses Playwright workerInfo for deterministic project_id/source_id.
+ * Also runs setupCleanTestState(page) to clear localStorage, overlays, and UI state.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { test as base } from '@playwright/test';
 import type { WorkerInfo } from '@playwright/test';
+
+import { setupCleanTestState } from '../helpers/setup';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
@@ -140,6 +143,12 @@ function deterministicIdsLarge(workerId: number): { project_id: string; source_i
 }
 
 export const test = base.extend<{}, { seed: SeedFixture; seedLarge: SeedFixture }>({
+  // Clear storage, overlays, and UI state before each test (prevents cross-test leakage)
+  page: async ({ page }, use) => {
+    await setupCleanTestState(page);
+    await use(page);
+  },
+
   seed: [
     async ({}, use, workerInfo: WorkerInfo) => {
       const workerId = getWorkerId(workerInfo);
@@ -155,7 +164,7 @@ export const test = base.extend<{}, { seed: SeedFixture; seedLarge: SeedFixture 
 
       await use(seedData);
     },
-    { scope: 'worker' },
+    { scope: 'test' },
   ],
   seedLarge: [
     async ({}, use, workerInfo: WorkerInfo) => {
@@ -165,7 +174,7 @@ export const test = base.extend<{}, { seed: SeedFixture; seedLarge: SeedFixture 
 
       await use(seedData);
     },
-    { scope: 'worker' },
+    { scope: 'test' },
   ],
 });
 

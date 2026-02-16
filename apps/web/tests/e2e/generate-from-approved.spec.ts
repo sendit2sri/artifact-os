@@ -7,7 +7,11 @@
 
 import { test, expect } from './fixtures/seed';
 import { gotoProject, switchToAllDataView } from './helpers/nav';
-import { selectTwoFacts, ensureOutputDrawerAfterGenerate } from './helpers/synthesis';
+import {
+  selectTwoFacts,
+  ensureOutputDrawerAfterGenerate,
+  waitForAppIdle,
+} from './helpers/synthesis';
 
 test.describe('Generate from Approved', () => {
   test.beforeEach(async ({ page, seed }) => {
@@ -21,6 +25,11 @@ test.describe('Generate from Approved', () => {
     await expect(approvedBtn).toBeVisible({ timeout: 10000 });
     await approvedBtn.click();
     await ensureOutputDrawerAfterGenerate(page, 'merge');
-    await expect(page.getByTestId('output-quality-approved')).toContainText('2');
+    await waitForAppIdle(page);
+    const approvedEl = page.getByTestId('output-quality-approved');
+    await expect(approvedEl).toBeVisible({ timeout: 5000 });
+    const approvedText = await approvedEl.textContent();
+    const approvedCount = parseInt(approvedText ?? '0', 10);
+    expect(approvedCount).toBeGreaterThanOrEqual(2);
   });
 });

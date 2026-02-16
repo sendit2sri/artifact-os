@@ -101,6 +101,10 @@ db-rev:
 db-up:
 	docker-compose exec backend alembic upgrade head
 
+# Check migrations in sync (models match DB). Use with Docker; CI runs script directly.
+db-check:
+	@docker compose exec backend bash -c 'cd /app && (alembic upgrade head 2>/dev/null || true) && alembic check' && echo "Migrations OK (models in sync)"
+
 # --- E2E (Playwright in Docker) ---
 # Use docker-compose.e2e.yml for production build (next start) — eliminates HMR/Turbopack flake.
 COMPOSE_E2E = -f docker-compose.yml -f docker-compose.e2e.yml
@@ -113,10 +117,33 @@ e2e-up:
 	@echo "⏳ Playwright waits for service_healthy; run: make e2e-smoke"
 
 # Rebuild images before starting (use when deps/Dockerfile change)
+# Use make e2e-rebuild-no-cache if __e2e harness missing (stale build cache)
 e2e-rebuild:
 	@echo "🔨 Rebuilding E2E stack..."
 	docker compose $(COMPOSE_E2E) up -d --build proxy backend worker db redis web
+
+# Image name must match compose project (artifact-os) + service (web)
+E2E_WEB_IMAGE ?= artifact-os-web:latest
+e2e-rebuild-no-cache:
+	@echo "🔨 Rebuilding E2E stack (no cache, docker build with explicit args)..."
+	docker build -f apps/web/Dockerfile --target runner --no-cache \
+		--build-arg NEXT_PUBLIC_API_URL=/api/v1 \
+		--build-arg NEXT_PUBLIC_E2E_MODE=true \
+		--build-arg NEXT_PUBLIC_ENABLE_TEST_SEED=true \
+		-t $(E2E_WEB_IMAGE) ./apps/web
+	@echo "🔍 Verifying E2E bundle in image..."
+	@docker run --rm $(E2E_WEB_IMAGE) sh -c 'grep -rq "data-e2e" /app/.next 2>/dev/null && echo "✅ data-e2e found in bundle" || { echo "❌ data-e2e NOT in bundle - run: make e2e-rebuild-no-cache"; exit 1; }'
+	docker compose $(COMPOSE_E2E) up -d proxy backend worker db redis web
 	@echo "⏳ Playwright waits for service_healthy; run: make e2e-smoke"
+
+# Self-test for e2e-compose-check.jq (env list/map + short/long volumes)
+e2e-check-jq:
+	@echo "🔍 Testing e2e-compose-check.jq..."
+	@jq -f apps/web/scripts/e2e-compose-check.jq apps/web/scripts/fixtures/compose-env-list.json | jq -e '.e2e_mode == "true" and .seed == "true" and (.bind_mounts | length) == 2' >/dev/null && echo "  ✓ env-list + short volumes"
+	@jq -f apps/web/scripts/e2e-compose-check.jq apps/web/scripts/fixtures/compose-env-map.json | jq -e '.e2e_mode == "true" and .seed == "true" and (.bind_mounts | length) == 1' >/dev/null && echo "  ✓ env-map + long volumes"
+	@jq -f apps/web/scripts/e2e-compose-check.jq apps/web/scripts/fixtures/compose-missing-env.json | jq -e '.e2e_mode == "missing" and .seed == "missing" and (.bind_mounts | length) == 0' >/dev/null && echo "  ✓ missing env + no mounts"
+	@jq -f apps/web/scripts/e2e-compose-check.jq apps/web/scripts/fixtures/compose-env-case.json | jq -e '.e2e_mode == "true" and .seed == "true"' >/dev/null && echo "  ✓ env case normalization (TRUE/True → true)"
+	@echo "✅ e2e-compose-check.jq OK"
 
 # Sanity check: proxy and backend must be reachable before running tests
 e2e-sanity:
@@ -126,21 +153,42 @@ e2e-sanity:
 	@echo "✅ Both reachable"
 
 # Run release-gate suite (4–6 core tests, no clipboard). Host wait for proxy 200, then Playwright runs.
+# Proxy publishes port 8080 (docker-compose: "8080:80")
+E2E_PROXY_URL ?= http://localhost:8080
 e2e-smoke:
+	@echo "📋 Compose: docker compose $(COMPOSE_E2E)"
+	@docker image inspect $(E2E_WEB_IMAGE) >/dev/null 2>&1 || { echo "❌ E2E_GUARDRAILS_FAIL — Image $(E2E_WEB_IMAGE) not found. Run: make e2e-rebuild-no-cache"; exit 1; }
+	@docker run --rm --entrypoint sh "$(E2E_WEB_IMAGE)" -c 'test -f /app/.next/BUILD_ID && test -d /app/.next/static && test -d /app/.next/server' 2>/dev/null || { echo "❌ E2E_GUARDRAILS_FAIL — Image missing .next/BUILD_ID, .next/static, or .next/server (not a runner build). Run: make e2e-rebuild-no-cache"; exit 1; }
+	@echo "📦 Image: $$(docker images --format '{{.ID}} {{.CreatedAt}} {{.Size}}' $(E2E_WEB_IMAGE) 2>/dev/null)$$(docker image inspect $(E2E_WEB_IMAGE) --format '{{if .RepoDigests}} | {{index .RepoDigests 0}}{{end}}' 2>/dev/null)"
+	@CONFIG=$$(docker compose $(COMPOSE_E2E) config --format json 2>/dev/null); \
+	IMG=$$(echo "$$CONFIG" | jq -r '.services.web.image // empty'); \
+	[ "$$IMG" = "$(E2E_WEB_IMAGE)" ] || { echo "❌ E2E_GUARDRAILS_FAIL — E2E must pin web image to $(E2E_WEB_IMAGE)."; echo "   Detected: .services.web.image = \"$$IMG\""; echo "   Run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d"; exit 1; }; \
+	HAS_BUILD=$$(echo "$$CONFIG" | jq -r 'if .services.web.build != null then "yes" else "no" end'); \
+	[ "$$HAS_BUILD" != "yes" ] || { echo "❌ E2E_GUARDRAILS_FAIL — E2E must use $(E2E_WEB_IMAGE) built by make e2e-rebuild-no-cache (no compose build)."; echo "   Detected: .services.web.build is set."; echo "   Run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d"; exit 1; }; \
+	CMD=$$(echo "$$CONFIG" | jq -r '.services.web.command | if type == "array" then join(" ") else . end'); \
+	echo "$$CMD" | grep -qE 'run dev|next dev' && { echo "❌ E2E_GUARDRAILS_FAIL — E2E must run next start (runner), not dev server."; echo "   Detected: command contains dev."; echo "   Run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d"; exit 1; } || true; \
+	CHECKS=$$(echo "$$CONFIG" | jq -f apps/web/scripts/e2e-compose-check.jq 2>/dev/null); \
+	E2E_MODE=$$(echo "$$CHECKS" | jq -r '.e2e_mode // "missing"'); \
+	SEED=$$(echo "$$CHECKS" | jq -r '.seed // "missing"'); \
+	[ "$$E2E_MODE" = "true" ] || { echo "❌ E2E_GUARDRAILS_FAIL — E2E requires NEXT_PUBLIC_E2E_MODE=true at runtime."; [ "$$E2E_MODE" = "missing" ] && echo "   Detected: not set at runtime." || echo "   Detected: \"$$E2E_MODE\" (must be true)."; exit 1; }; \
+	[ "$$SEED" = "true" ] || { echo "❌ E2E_GUARDRAILS_FAIL — E2E requires NEXT_PUBLIC_ENABLE_TEST_SEED=true at runtime."; [ "$$SEED" = "missing" ] && echo "   Detected: not set at runtime." || echo "   Detected: \"$$SEED\" (must be true)."; exit 1; }; \
+	BIND_MOUNTS=$$(echo "$$CHECKS" | jq -r '.bind_mounts | join(" ")' 2>/dev/null); \
+	[ -z "$$BIND_MOUNTS" ] || { echo "❌ E2E_GUARDRAILS_FAIL — Web must have no bind mounts (image-only). Detected: $$BIND_MOUNTS"; echo "   Run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d"; exit 1; }
+	@echo "✅ E2E_GUARDRAILS_PASS — E2E Guardrails: PASS"
 	@echo "⏳ Waiting for proxy (web build ~2–5 min)..."
 	@i=0; code=000; while [ $$i -lt 120 ]; do \
-	  code=$$(curl -s -o /dev/null -w "%{http_code}" http://localhost/ 2>/dev/null || echo "000"); \
+	  code=$$(curl -s -o /dev/null -w "%{http_code}" $(E2E_PROXY_URL)/ 2>/dev/null || echo "000"); \
 	  [ "$$code" = "200" ] && echo "✅ Proxy ready" && break; \
 	  echo "  proxy returned $$code"; sleep 2; i=$$((i+1)); \
 	done; \
 	[ "$$code" = "200" ] || { echo "❌ Proxy never returned 200. Run 'make e2e-up' or 'make e2e-rebuild' first."; exit 1; }
 	@echo "⏳ Checking web + API through proxy..."
 	@i=0; while [ $$i -lt 30 ]; do \
-	  curl -sf http://localhost/ >/dev/null && curl -sf http://localhost/api/v1/health >/dev/null && echo "✅ Web + API ready" && break; \
+	  curl -sf $(E2E_PROXY_URL)/ >/dev/null && curl -sf $(E2E_PROXY_URL)/api/v1/health >/dev/null && echo "✅ Web + API ready" && break; \
 	  echo "  waiting for web/API"; sleep 2; i=$$((i+1)); \
 	done; \
-	curl -sf http://localhost/ >/dev/null || { echo "❌ Proxy / never ready."; exit 1; }; \
-	curl -sf http://localhost/api/v1/health >/dev/null || { echo "❌ Proxy /api/v1/health never ready. Check backend + nginx."; exit 1; }
+	curl -sf $(E2E_PROXY_URL)/ >/dev/null || { echo "❌ Proxy / never ready."; exit 1; }; \
+	curl -sf $(E2E_PROXY_URL)/api/v1/health >/dev/null || { echo "❌ Proxy /api/v1/health never ready. Check backend + nginx."; exit 1; }
 	@echo "🚀 Starting Playwright..."
 	@docker compose $(COMPOSE_E2E) run --rm playwright || ( \
 	  echo ""; echo "❌ Release gate failed."; \

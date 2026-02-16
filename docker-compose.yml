@@ -10,7 +10,7 @@ services:
       - web
       - backend
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      test: ["CMD", "wget", "-qO-", "http://localhost/_health"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -72,11 +72,11 @@ services:
     environment:
       # ✅ API routing
       - NEXT_PUBLIC_API_URL=/api/v1
-      # ✅ E2E harness (window.__e2e) for Playwright — required when PLAYWRIGHT_SKIP_WEBSERVER=1
-      - NEXT_PUBLIC_E2E_MODE=true
-      - NEXT_PUBLIC_ENABLE_TEST_SEED=true
-      - ARTIFACT_E2E_MODE=true
-      - ARTIFACT_ENABLE_TEST_SEED=true
+      # ✅ E2E flags off in dev — E2E override sets them true
+      - NEXT_PUBLIC_E2E_MODE=false
+      - NEXT_PUBLIC_ENABLE_TEST_SEED=false
+      - ARTIFACT_E2E_MODE=false
+      - ARTIFACT_ENABLE_TEST_SEED=false
       # ✅ File watching with polling (critical for Docker volume mounts)
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
@@ -128,6 +128,8 @@ services:
       bash -lc '
       npm ci &&
       npx playwright install --with-deps &&
+      echo "⏳ Preflight: checking __e2e harness..." &&
+      node scripts/e2e-preflight.js &&
       echo "✅ ready, running release-gate tests" &&
       npx playwright test -c playwright.config.ts --grep @release-gate --project=chromium --workers=1 --max-failures=1
       '

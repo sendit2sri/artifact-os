@@ -15,17 +15,16 @@ test.describe('Selection Autosave', () => {
 
   test('select 3 facts → reload → restored selection banner and count persists', async ({ page, seed }) => {
     await page.getByTestId('view-tab-all').click();
-    const cards = page.getByTestId('fact-card');
-    await expect(cards.first()).toBeVisible({ timeout: 10_000 });
+    const card1 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-1]' });
+    const card2 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-2]' });
+    const card3 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-3]' });
+    await expect(card1).toBeVisible({ timeout: 10_000 });
 
-    const count = await cards.count();
-    const toSelect = Math.min(3, count);
-    for (let i = 0; i < toSelect; i++) {
-      const card = cards.nth(i);
-      const selBtn = card.getByTestId('fact-select-button');
-      await selBtn.click();
-    }
+    await card1.getByTestId('fact-select-button').click();
+    await card2.getByTestId('fact-select-button').click();
+    await card3.getByTestId('fact-select-button').click();
 
+    const toSelect = 3;
     await expect(page.getByTestId('selection-bar')).toBeVisible({ timeout: 3000 });
     await expect(page.getByTestId('bulk-actions-label')).toContainText(String(toSelect));
 

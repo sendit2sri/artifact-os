@@ -1,11 +1,16 @@
 import { test, expect } from './fixtures/seed';
 import { gotoProject } from './helpers/nav';
 import {
+  openEvidenceForFirstAnchorWithNext,
+  FACT_ANCHORS,
+} from './helpers/facts';
+import {
   selectTwoFacts,
   clickGenerate,
   ensureOutputDrawerAfterGenerate,
   assertDrawerSuccess,
 } from './helpers/synthesis';
+import { nextEvidence } from './helpers/evidence';
 import { waitForAppIdle } from './helpers/setup';
 
 /**
@@ -17,15 +22,18 @@ import { waitForAppIdle } from './helpers/setup';
 test.describe('Panels Pin', () => {
   test.beforeEach(async ({ page, seed }) => {
     await gotoProject(page, seed.project_id);
+    await waitForAppIdle(page);
   });
 
   test('pin evidence keeps panel open when clicking next fact and updates evidence-fact-text', async ({
     page,
   }) => {
-    const factCards = page.getByTestId('fact-card');
-    await expect(factCards.first()).toBeVisible({ timeout: 10000 });
-
-    await factCards.first().getByTestId('evidence-open').click();
+    await openEvidenceForFirstAnchorWithNext(page, [
+      FACT_ANCHORS.APPROVED_2,
+      FACT_ANCHORS.NEEDS_REVIEW_1,
+      FACT_ANCHORS.PENDING_1,
+      FACT_ANCHORS.APPROVED_1,
+    ]);
     await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 8000 });
     const firstFactText = await page.getByTestId('evidence-fact-text').textContent();
     expect(firstFactText).toBeTruthy();
@@ -33,7 +41,7 @@ test.describe('Panels Pin', () => {
     await page.getByTestId('evidence-pin').click();
 
     // Use panel's Next to switch fact (panel covers cards; avoid clicking through overlay)
-    await page.getByTestId('evidence-next').click();
+    await nextEvidence(page);
     await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 5000 });
     await expect(async () => {
       const secondFactText = await page.getByTestId('evidence-fact-text').textContent();
@@ -54,8 +62,14 @@ test.describe('Panels Pin', () => {
     await waitForAppIdle(page);
     await expect(page.getByTestId('output-drawer-pin')).toHaveAttribute('data-pinned', 'true');
 
-    await page.getByRole('button', { name: 'History' }).click();
-    await expect(page.getByTestId('output-drawer')).toBeVisible();
-    await expect(page.getByTestId('outputs-history-drawer')).toBeVisible();
+    const historyBtn = page.getByTestId('output-drawer-open-history');
+    await expect(historyBtn).toBeVisible();
+    await historyBtn.scrollIntoViewIfNeeded();
+    await expect(historyBtn).toBeEnabled();
+    await historyBtn.click();
+    await expect(async () => {
+      await expect(page.getByTestId('outputs-history-drawer')).toBeVisible({ timeout: 5000 });
+      await expect(page.getByTestId('output-drawer')).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 15000 });
   });
 });

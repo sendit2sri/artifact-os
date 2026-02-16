@@ -6,6 +6,7 @@
 
 import { test, expect } from './fixtures/seed';
 import { gotoProject, switchToAllDataView } from './helpers/nav';
+import { openEvidenceForAnchor, FACT_ANCHORS } from './helpers/facts';
 
 test.describe('Evidence snippet', () => {
   test.beforeEach(async ({ page, seed }) => {
@@ -15,11 +16,7 @@ test.describe('Evidence snippet', () => {
   test('open evidence panel for a fact: evidence_snippet shown, not equal to fact text, url visible', async ({
     page,
   }) => {
-    const factCards = page.getByTestId('fact-card');
-    await expect(factCards.first()).toBeVisible({ timeout: 10000 });
-    const firstCard = factCards.first();
-    const evidenceBtn = firstCard.getByTestId('evidence-open');
-    await evidenceBtn.click();
+    await openEvidenceForAnchor(page, FACT_ANCHORS.APPROVED_1);
 
     const panel = page.getByTestId('evidence-panel');
     await expect(panel).toBeVisible({ timeout: 5000 });
@@ -49,11 +46,7 @@ test.describe('Evidence snippet', () => {
     page,
   }) => {
     await switchToAllDataView(page);
-    const factCards = page.getByTestId('fact-card');
-    await expect(factCards.first()).toBeVisible({ timeout: 10000 });
-    const thirdCard = factCards.nth(2);
-    const evidenceBtn = thirdCard.getByTestId('evidence-open');
-    await evidenceBtn.click();
+    await openEvidenceForAnchor(page, FACT_ANCHORS.NO_SNIPPET_1);
 
     const panel = page.getByTestId('evidence-panel');
     await expect(panel).toBeVisible({ timeout: 5000 });

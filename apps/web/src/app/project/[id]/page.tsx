@@ -168,6 +168,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     const [viewingFact, setViewingFact] = useState<Fact | null>(null);
     const [evidenceFactIdsSnapshot, setEvidenceFactIdsSnapshot] = useState<string[]>([]);
     const [selectedFacts, setSelectedFacts] = useState<Set<string>>(new Set());
+    const [selectionModeActive, setSelectionModeActive] = useState(false);
+    const selectionModeActiveRef = useRef(selectionModeActive);
+    selectionModeActiveRef.current = selectionModeActive;
     const [selectionRestoredFromStorage, setSelectionRestoredFromStorage] = useState(false);
     const selectionSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [isSynthesizing, setIsSynthesizing] = useState(false);
@@ -553,6 +556,16 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         } catch (_) { /* ignore */ }
     }, [projectId, facts, selectedFacts.size]);
 
+    const enterSelectionMode = useCallback(() => {
+        setSelectionModeActive(true);
+    }, []);
+
+    const exitSelectionMode = useCallback(() => {
+        setSelectionModeActive(false);
+    }, []);
+
+    // selectionModeActive is explicit user intent; only reset on explicit exit (Done, Esc, navigate away)
+
     // Autosave selection to localStorage (debounced 300ms)
     useEffect(() => {
         if (selectedFacts.size === 0) {
@@ -674,12 +687,15 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         }
     }, [mounted, workspaceId, projectId, prefsQuery.isSuccess, serverPrefs, sp]);
 
-    // Command palette: Cmd+K / Ctrl+K; Escape closes it (and in E2E helps avoid overlay blocking clicks)
+    // Command palette: Cmd+K / Ctrl+K; Escape closes it or exits selection mode
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
                 setShowCommandPalette(false);
                 setCommandPaletteQuery("");
+                const active = document.activeElement;
+                const inInput = active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || (active as HTMLElement).isContentEditable);
+                if (selectionModeActiveRef.current && !inInput) setSelectionModeActive(false);
                 return;
             }
             if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -705,12 +721,12 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             queryClient.invalidateQueries({ queryKey: ["project-facts", projectId] });
             queryClient.invalidateQueries({ queryKey: ["project-sources", projectId] });
             
-            // Check if this was a duplicate
-            if (data.is_duplicate) {
+            // Graceful deduplication: toast + pulse on existing source row
+            if (data.is_duplicate || data.result_summary?.is_duplicate) {
                 const canonical = data.params?.canonical_url || urlUsed;
                 setHighlightCanonicalUrl(canonical);
-                setTimeout(() => setHighlightCanonicalUrl(null), 3500);
-                toast.info(data.message || "Already added", {
+                setTimeout(() => setHighlightCanonicalUrl(null), 2000);
+                toast.info("Source already exists.", {
                     id: `duplicate-${jobId || urlInput}`
                 });
             } else {
@@ -1142,7 +1158,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     // Auto-ingest URL from query param on mount
     useEffect(() => {
         const ingestParam = searchParams.get("ingest");
-        if (ingestParam && !jobs?.some(j => j.params.url === ingestParam)) {
+        if (ingestParam) {
             setUrlInput(ingestParam);
             
             // Deduplicate: Check if we've already processed this URL
@@ -1158,10 +1174,14 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                     queryClient.invalidateQueries({ queryKey: ["project-facts", projectId] });
                     queryClient.invalidateQueries({ queryKey: ["project-sources", projectId] });
                     
-                    // Use same toast message as manual ingest for consistency
-                    toast.success("Source added! Processing will begin shortly.", {
-                        id: toastKey
-                    });
+                    if (data.is_duplicate || data.result_summary?.is_duplicate) {
+                        const canonical = data.params?.canonical_url || ingestParam;
+                        setHighlightCanonicalUrl(canonical);
+                        setTimeout(() => setHighlightCanonicalUrl(null), 2000);
+                        toast.info("Source already exists.", { id: toastKey });
+                    } else {
+                        toast.success("Source added! Processing will begin shortly.", { id: toastKey });
+                    }
                     
                     // Remove the ingest param from URL
                     const params = new URLSearchParams(searchParams.toString());
@@ -1323,7 +1343,6 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         if (type === "URL") setViewMode("all");
     };
 
-    const isDuplicate = (jobs ?? []).some(j => j.params.url.trim() === urlInput.trim());
     const trimmedUrl = urlInput.trim();
     const isValidUrl = trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://");
 
@@ -1641,7 +1660,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                             {inputType === "url" ? (
                                 <>
                                     <div className="relative flex flex-col gap-1 min-w-0 flex-1 basis-32 sm:basis-48">
-                                        <Input ref={urlInputRef} data-testid="source-url-input" placeholder="Paste a source URL..." value={urlInput} onChange={(e) => { setUrlInput(e.target.value); setAddUrlError(null); }} className={cn("min-w-0 w-full max-w-[20rem] h-9 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30", isDuplicate && "text-warning")} />
+                                        <Input ref={urlInputRef} data-testid="source-url-input" placeholder="Paste a source URL..." value={urlInput} onChange={(e) => { setUrlInput(e.target.value); setAddUrlError(null); }} className="min-w-0 w-full max-w-[20rem] h-9 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30" />
                                         {(addUrlError || (trimmedUrl && !isValidUrl)) && (
                                             <div data-testid="source-add-error" className="text-xs text-destructive" title={addUrlError || "Invalid URL"}>
                                                 {addUrlError || "Invalid URL. Must start with http:// or https://"}
@@ -1687,7 +1706,6 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 setSelectedFile={setSelectedFile}
                 addUrlError={addUrlError}
                 isValidUrl={isValidUrl}
-                isDuplicate={isDuplicate}
                 onAddUrl={() => ingestMutation.mutate()}
                 onUpload={() => uploadMutation.mutate()}
                 isAddPending={ingestMutation.isPending}
@@ -2261,7 +2279,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                         </>
                                     ) : (
                                         <>
-                                            {selectedFacts.size > 0 && (
+                                            {(selectionModeActive || selectedFacts.size > 0) && (
                                                 <div data-testid="selection-bar" className="flex items-center justify-between gap-3 px-4 py-2.5 mb-2 rounded-lg border border-border bg-muted/50 text-sm">
                                                     <span className="font-medium text-foreground">
                                                         Selected: <strong>{selectedFacts.size}</strong>
@@ -2283,6 +2301,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                         <Button size="sm" variant="ghost" className="h-9 text-xs text-muted-foreground hover:text-foreground" data-testid="selection-clear" onClick={() => setSelectedFacts(new Set())}>
                                                             Clear
                                                         </Button>
+                                                        <Button size="sm" variant="outline" className="h-9 text-xs" data-testid="selection-done" onClick={exitSelectionMode}>
+                                                            Done
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             )}
@@ -2290,7 +2311,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                         <div className="space-y-4">
                                             {visibleFactsGroupedBySource.map(({ domain, facts: groupFacts }) => (
                                                 <div key={domain} data-testid="facts-group-section" className="bg-surface rounded-lg border border-border overflow-hidden shadow-sm">
-                                                    <div data-testid="facts-group-title" className="px-4 py-2.5 border-b border-border text-sm font-medium text-foreground bg-muted/50">
+                                                    <div data-testid="facts-group-title" className="px-4 py-2.5 border-b border-border text-sm font-medium text-foreground bg-muted/50 pointer-events-none">
                                                         {domain}
                                                     </div>
                                                     {groupFacts.map((fact) => (
@@ -2306,7 +2327,8 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                                 else newSet.add(f.id);
                                                                 setSelectedFacts(newSet);
                                                             }}
-                                                            selectionMode={selectedFacts.size > 0}
+                                                            onEnterSelectionMode={enterSelectionMode}
+                                                            selectionMode={selectionModeActive || selectedFacts.size > 0}
                                                             undoManager={undoManager}
                                                             onSimilarChipClick={collapseSimilar && fact.group_id ? (f) => { setSimilarDrawerGroupId(f.group_id!); setSimilarDrawerRepFact(f); } : undefined}
                                                         />
@@ -2329,7 +2351,8 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                         else newSet.add(f.id);
                                                         setSelectedFacts(newSet);
                                                     }}
-                                                    selectionMode={selectedFacts.size > 0}
+                                                    onEnterSelectionMode={enterSelectionMode}
+                                                    selectionMode={selectionModeActive || selectedFacts.size > 0}
                                                     undoManager={undoManager}
                                                     onSimilarChipClick={collapseSimilar && fact.group_id ? (f) => { setSimilarDrawerGroupId(f.group_id!); setSimilarDrawerRepFact(f); } : undefined}
                                                 />
@@ -2708,6 +2731,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             <OutputDrawer
                 open={showOutputDrawer}
                 onOpenChange={(open) => {
+                    if (!open && pinnedPanels.output) return;
                     setShowOutputDrawer(open);
                     if (!open) setOutputOpenedFromHistory(false);
                 }}
@@ -2745,6 +2769,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 onOpenRepick={handleOpenRepickFromOutput}
                 onOpenHistory={() => {
                     if (panelStackRef.current.length === 0 || panelStackRef.current[panelStackRef.current.length - 1] !== "history") pushPanel("history");
+                    if (pinnedPanels.output) setShowOutputDrawer(true);
                     setShowHistoryDrawer(true);
                 }}
             />

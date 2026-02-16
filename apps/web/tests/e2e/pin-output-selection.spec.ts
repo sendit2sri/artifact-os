@@ -102,47 +102,30 @@ test.describe('Evidence freshness + reprocess', () => {
   test('fact without snippet: evidence shows empty message and reprocess button', async ({
     page,
   }) => {
-    const factCards = page.getByTestId('fact-card');
-    await expect(factCards.first()).toBeVisible({ timeout: 10000 });
-    let opened = false;
-    for (let i = 0; i < Math.min(await factCards.count(), 5); i++) {
-      await factCards.nth(i).getByTestId('evidence-open').click();
-      await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 5000 });
-      const emptySnippet = page.getByTestId('evidence-empty-snippet');
-      if (await emptySnippet.isVisible()) {
-        await expect(page.getByTestId('evidence-freshness')).toContainText(
-          'No excerpt captured yet'
-        );
-        await expect(page.getByTestId('evidence-reprocess-source')).toBeVisible();
-        opened = true;
-        break;
-      }
-      await page.getByTestId('evidence-close').click();
-    }
-    if (!opened) test.skip(true, 'No fact without snippet in this seed');
-    expect(opened).toBe(true);
+    const noSnippetCard = page.getByTestId('fact-card').filter({ hasText: '[E2E:NO_SNIPPET-1]' });
+    await expect(noSnippetCard).toBeVisible({ timeout: 10000 });
+    await noSnippetCard.getByTestId('evidence-open').click();
+    await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('evidence-empty-snippet')).toBeVisible({ timeout: 3000 });
+    await expect(page.getByTestId('evidence-freshness')).toContainText(
+      'No excerpt captured yet'
+    );
+    await expect(page.getByTestId('evidence-reprocess-source')).toBeVisible();
   });
 
   test('click reprocess source → timeline or ingest triggered', async ({ page }) => {
-    const factCards = page.getByTestId('fact-card');
-    await expect(factCards.first()).toBeVisible({ timeout: 10000 });
-    for (let i = 0; i < Math.min(await factCards.count(), 5); i++) {
-      await factCards.nth(i).getByTestId('evidence-open').click();
-      await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 5000 });
-      const reprocessBtn = page.getByTestId('evidence-reprocess-source');
-      if (await reprocessBtn.isVisible()) {
-        await reprocessBtn.click();
-        // Assert processing timeline appears (job started) or panel still open — no flaky toast
-        await expect(async () => {
-          const timeline = page.getByTestId('processing-timeline');
-          if (await timeline.isVisible()) return;
-          await expect(page.getByTestId('evidence-panel')).toBeVisible();
-        }).toPass({ timeout: 8000 });
-        return;
-      }
-      await page.getByTestId('evidence-close').click();
-    }
-    test.skip(true, 'No fact without snippet in this seed');
+    const noSnippetCard = page.getByTestId('fact-card').filter({ hasText: '[E2E:NO_SNIPPET-1]' });
+    await expect(noSnippetCard).toBeVisible({ timeout: 10000 });
+    await noSnippetCard.getByTestId('evidence-open').click();
+    await expect(page.getByTestId('evidence-panel')).toBeVisible({ timeout: 5000 });
+    const reprocessBtn = page.getByTestId('evidence-reprocess-source');
+    await expect(reprocessBtn).toBeVisible({ timeout: 3000 });
+    await reprocessBtn.click();
+    await expect(async () => {
+      const timeline = page.getByTestId('processing-timeline');
+      if (await timeline.isVisible()) return;
+      await expect(page.getByTestId('evidence-panel')).toBeVisible();
+    }).toPass({ timeout: 8000 });
   });
 });
 

@@ -12,7 +12,122 @@ export { waitForAppIdle } from './setup';
 export type SynthesisResult = 'drawer' | 'builder' | 'error';
 
 /**
+ * Select the first N visible fact cards (seed-agnostic).
+ * Use when seed may not have specific anchors (e.g. seedWithSimilarFacts).
+ * When assertSelectedCount is true, asserts selection-bar shows "Selected: 1", "Selected: 2", etc. after each click.
+ */
+export async function selectFirstNVisibleFacts(
+  page: Page,
+  n: number,
+  options?: { timeout?: number; assertSelectedCount?: boolean }
+): Promise<void> {
+  const timeout = options?.timeout ?? 10000;
+  const assertSelectedCount = options?.assertSelectedCount ?? false;
+  await expect(page.getByTestId('fact-card').first()).toBeVisible({ timeout });
+  for (let i = 0; i < n; i++) {
+    const cards = page.getByTestId('fact-card');
+    const card = cards.nth(i);
+    await expect(card).toBeVisible({ timeout });
+    await card.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(100);
+    await card.hover();
+    await page.waitForTimeout(100);
+    const selectBtn = card.getByTestId('fact-select-button');
+    await selectBtn.click({ force: true });
+    await page.waitForTimeout(200);
+    if (assertSelectedCount) {
+      const expectedCount = i + 1;
+      const bar = page.getByTestId('selection-bar');
+      const hasExpected = await bar
+        .evaluate((el, expected) => el.textContent?.includes(`Selected: ${expected}`), expectedCount)
+        .catch(() => false);
+      if (!hasExpected) {
+        // Fallback: button click may be intercepted in grouped/collapsed layout; card onClick toggles selection.
+        // Click left edge (checkbox area) to avoid fact text which enters edit mode.
+        const box = await card.boundingBox();
+        if (box) {
+          await page.mouse.click(box.x + 24, box.y + box.height / 2, { force: true });
+        } else {
+          await card.click({ force: true });
+        }
+        await page.waitForTimeout(200);
+      }
+      await expect(bar).toContainText(`Selected: ${expectedCount}`, { timeout: 5000 });
+    }
+  }
+}
+
+/**
+ * Select one fact per group (up to nGroups). Stable for collapse+grouped: each selection
+ * comes from a fresh section locator, avoiding DOM remount/reorder issues.
+ * If fewer groups than needed, selects multiple from first group.
+ */
+export async function selectOneFactPerGroup(
+  page: Page,
+  nGroups = 2,
+  options?: { timeout?: number; assertSelectedCount?: boolean }
+): Promise<void> {
+  const timeout = options?.timeout ?? 10000;
+  const assertSelectedCount = options?.assertSelectedCount ?? true;
+  const sections = page.getByTestId('facts-group-section');
+  await expect(sections.first()).toBeVisible({ timeout });
+  const sectionCount = await sections.count();
+  if (sectionCount === 0) {
+    throw new Error('selectOneFactPerGroup: no facts-group-section found');
+  }
+
+  let selectedCount = 0;
+  for (let g = 0; g < sectionCount && selectedCount < 2; g++) {
+    await page.waitForTimeout(selectedCount > 0 ? 400 : 0);
+    const sectionsNow = page.getByTestId('facts-group-section');
+    const section = sectionsNow.nth(g);
+    await section.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(100);
+    const cards = section.getByTestId('fact-card');
+    const cardCount = await cards.count();
+    const need = 2 - selectedCount;
+    const perGroup = sectionCount === 1 ? need : 1;
+    const take = Math.min(need, perGroup, cardCount);
+    for (let c = 0; c < take && selectedCount < 2; c++) {
+      const card = cards.nth(c);
+      await expect(card).toBeVisible({ timeout });
+      await card.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(100);
+      await card.hover();
+      await page.waitForTimeout(100);
+      const selectBtn = card.getByTestId('fact-select-button');
+      await selectBtn.click({ force: true });
+      await page.waitForTimeout(200);
+      selectedCount++;
+      if (assertSelectedCount) {
+        const bar = page.getByTestId('selection-bar');
+        const hasExpected = await bar
+          .evaluate((el, expected) => el.textContent?.includes(`Selected: ${expected}`), selectedCount)
+          .catch(() => false);
+        if (!hasExpected) {
+          const box = await card.boundingBox();
+          if (box) {
+            await page.mouse.click(box.x + 24, box.y + box.height / 2, { force: true });
+          } else {
+            await card.click({ force: true });
+          }
+          await page.waitForTimeout(200);
+        }
+        await expect(bar).toContainText(`Selected: ${selectedCount}`, { timeout: 5000 });
+      }
+    }
+  }
+
+  if (selectedCount < 2) {
+    throw new Error(
+      `selectOneFactPerGroup: selected ${selectedCount} facts (need 2). Sections: ${sectionCount}`
+    );
+  }
+}
+
+/**
  * Select exactly two facts from the fact list. Switches to All view first so enough facts are visible (invert/select-all behave correctly).
+ * Uses stable anchors [E2E:APPROVED-1] and [E2E:APPROVED-2] to avoid nth() ambiguity.
  */
 export async function selectTwoFacts(page: Page, options?: { timeout?: number }): Promise<void> {
   const timeout = options?.timeout ?? 10000;
@@ -20,24 +135,25 @@ export async function selectTwoFacts(page: Page, options?: { timeout?: number })
   const { expectFactsVisible } = await import('./setup');
   await switchToAllDataView(page);
   await expectFactsVisible(page, timeout);
-  const factCards = page.getByTestId('fact-card');
-  await factCards.first().getByTestId('fact-select-button').click();
-  await factCards.nth(1).getByTestId('fact-select-button').click();
+  const card1 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-1]' });
+  const card2 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-2]' });
+  await card1.getByTestId('fact-select-button').click();
+  await card2.getByTestId('fact-select-button').click();
 }
 
 /**
- * Select two facts from different sources (first and second card in All Data view) to open SynthesisBuilder.
- * With "Needs review first" sort, seed order is: card0=source1, card1=source2, card2=source1, card3=source1.
- * So first + nth(1) gives two sources; first + nth(3) would be same source.
+ * Select two facts from different sources to open SynthesisBuilder.
+ * Uses [E2E:APPROVED-1] (source1) and [E2E:PENDING-1] (source2) for stable cross-source selection.
  */
 export async function selectTwoFactsFromDifferentSources(page: Page): Promise<void> {
   const { switchToAllDataView } = await import('./nav');
   const { expectFactsVisible } = await import('./setup');
   await switchToAllDataView(page);
   await expectFactsVisible(page, 10000);
-  const factCards = page.getByTestId('fact-card');
-  await factCards.first().getByTestId('fact-select-button').click();
-  await factCards.nth(1).getByTestId('fact-select-button').click();
+  const card1 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-1]' });
+  const card2 = page.getByTestId('fact-card').filter({ hasText: '[E2E:PENDING-1]' });
+  await card1.getByTestId('fact-select-button').click();
+  await card2.getByTestId('fact-select-button').click();
 }
 
 /**

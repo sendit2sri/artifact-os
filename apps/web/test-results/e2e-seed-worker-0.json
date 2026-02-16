@@ -1,22 +1,22 @@
 {
   "project_id": "123e4567-e89b-12d3-a456-426614174000",
   "source_id": "223e4567-e89b-12d3-a456-426614174000",
-  "facts_count": 10,
+  "facts_count": 12,
   "outputs_count": 2,
   "seed_verification": {
-    "expected_facts": 8,
-    "actual_facts": 10,
+    "expected_facts": 9,
+    "actual_facts": 12,
     "has_approved": true,
     "has_pinned": true,
     "has_evidence": true
   },
   "known_fact_ids": {
-    "approved_1": "9656da25-00cb-4354-84fe-8da4e9abe82c",
-    "approved_2": "376ed285-bb0f-43a0-a5f6-1256acf73cb6",
-    "pinned_1": "3ebbe03c-6e05-4638-8589-3ea3258cb379",
-    "duplicate_original": "e645e2fc-d61b-4e6e-96ec-43d508d837ba",
-    "duplicate_suppressed": "b3eb0b0e-096a-4456-89e1-111a8e5d3d31",
-    "similar_rep": "01e53b0b-2ede-489a-aa1d-e4ec59f9f09f",
-    "no_snippet": "64f37cb5-113d-4a36-98b4-800e07f557aa"
+    "approved_1": "74bbddeb-5180-41fc-9ed6-f3fbdb54ea36",
+    "approved_2": "cf710067-0475-48fc-a166-a005c867612e",
+    "pinned_1": "b4111dc5-275f-44b9-86fb-b0cc2b718204",
+    "duplicate_original": "f0dc15f1-421f-4359-8e7b-d875af0fad8d",
+    "duplicate_suppressed": "55c5223f-16f7-4ea1-9a08-9faeaf23f26c",
+    "similar_rep": "a4c85796-99bb-4514-958b-d256b880caaf",
+    "no_snippet": "afaaa453-bb4e-4f71-b250-346f3394a8c6"
   }
 }
