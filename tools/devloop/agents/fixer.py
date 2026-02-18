@@ -22,6 +22,7 @@ Rules:
 - Do not include explanations.
 - Prefer the smallest change that fixes the failure.
 - Do not refactor unrelated code.
+- Inside hunks, every unchanged/context line MUST start with a single leading space. Even blank lines must be written as a line containing exactly one space.
 """
 
 

@@ -22,6 +22,7 @@ Output:
 - Do not use ``` fences.
 - Do not include explanations.
 - Patch must apply with `git apply`.
+- Inside hunks, every unchanged/context line MUST start with a single leading space. Even blank lines must be written as a line containing exactly one space.
 
 If no changes are needed, return an empty string.
 """

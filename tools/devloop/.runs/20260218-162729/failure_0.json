@@ -1,8 +1,0 @@
-{
-  "stage": "backend_lint",
-  "kind": "ruff",
-  "file": null,
-  "line": null,
-  "message": "Ruff failure (unparsed)",
-  "relevant_files": []
-}
