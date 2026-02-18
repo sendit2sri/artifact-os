@@ -4,7 +4,6 @@ import uuid
 from difflib import SequenceMatcher
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import or_
 from sqlmodel import Session, select, desc, delete
 from typing import List, Optional, Dict, Any, Tuple
 from pydantic import BaseModel
@@ -12,7 +11,7 @@ from uuid import UUID
 from datetime import datetime
 
 from app.db.session import get_session
-from app.models import Project, Job, ResearchNode, Workspace, SourceDoc, Output, ReviewStatus, JobStatus, SourceType
+from app.models import Project, Job, ResearchNode, SourceDoc, Output, ReviewStatus, JobStatus
 
 router = APIRouter()
 
@@ -265,7 +264,7 @@ def dedup_facts(project_id: str, body: DedupRequest, db: Session = Depends(get_s
         select(ResearchNode)
         .where(
             ResearchNode.project_id == p_uuid,
-            or_(ResearchNode.is_suppressed == False, ResearchNode.is_suppressed.is_(None)),
+            ResearchNode.is_suppressed.is_not(True),
         )
         .order_by(ResearchNode.created_at.asc())
     )
@@ -333,9 +332,7 @@ def get_project_facts(
     """
     statement = select(ResearchNode).where(ResearchNode.project_id == UUID(project_id))
     if not show_suppressed:
-        statement = statement.where(
-            or_(ResearchNode.is_suppressed == False, ResearchNode.is_suppressed.is_(None))
-        )
+        statement = statement.where(ResearchNode.is_suppressed.is_not(True))
 
     # ✅ STEP #8: Apply filters
     # Support legacy review_status param for backward compatibility
@@ -356,10 +353,10 @@ def get_project_facts(
             pass
         elif active_filter == "pinned":
             # Show only pinned facts
-            statement = statement.where(ResearchNode.is_pinned == True)
+            statement = statement.where(ResearchNode.is_pinned)
         elif active_filter == "key_claims":
             # Show only key claims
-            statement = statement.where(ResearchNode.is_key_claim == True)
+            statement = statement.where(ResearchNode.is_key_claim)
         elif active_filter in filter_mapping:
             # Filter by review status
             statement = statement.where(ResearchNode.review_status == filter_mapping[active_filter])
@@ -451,7 +448,7 @@ def get_facts_group(
         select(ResearchNode)
         .where(
             ResearchNode.project_id == p_uuid,
-            or_(ResearchNode.is_suppressed == False, ResearchNode.is_suppressed.is_(None)),
+            ResearchNode.is_suppressed.is_not(True),
         )
         .order_by(ResearchNode.created_at.desc())
     )
@@ -582,7 +579,6 @@ def capture_excerpt(
     db.refresh(node)
 
     source = db.get(SourceDoc, node.source_doc_id)
-    excerpt_short = (node.quote_text_raw or node.fact_text)[:280] if node.quote_text_raw or node.fact_text else None
     return {
         "ok": True,
         "fact": {
@@ -619,7 +615,7 @@ def get_sources_summary(project_id: str, db: Session = Depends(get_session)):
             select(ResearchNode)
             .where(
                 ResearchNode.source_doc_id == src.id,
-                or_(ResearchNode.is_suppressed == False, ResearchNode.is_suppressed.is_(None)),
+                ResearchNode.is_suppressed.is_not(True),
             )
         )
         facts = list(db.exec(facts_stmt).all())
@@ -1085,8 +1081,7 @@ def get_output_evidence_map(output_id: str, db: Session = Depends(get_session)):
 
     for node, source in rows:
         sid = str(node.id)
-        idx = order_index.get(sid, len(order_index))
-        # Will sort by idx after
+        # Will sort by order_index after
         snippet = getattr(node, "evidence_snippet", None) or None
         has_excerpt = bool(snippet and str(snippet).strip())
         source_url = getattr(node, "source_url", None) or (source.url if source else None)
