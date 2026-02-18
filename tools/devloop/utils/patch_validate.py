@@ -27,6 +27,36 @@ def _extract_diff_body(s: str) -> str:
     return s
 
 
+def _validate_hunk_prefixes(cleaned: str) -> tuple[bool, str]:
+    """
+    git apply requires unified hunks where each line begins with:
+      - ' ' context
+      - '+' add
+      - '-' delete
+      - '\\' for '\\ No newline at end of file'
+    Some models output raw file lines inside hunks (missing prefixes) which causes:
+      'error: corrupt patch at line N'
+    """
+    lines = cleaned.splitlines()
+    in_hunk = False
+    for i, line in enumerate(lines, start=1):
+        if line.startswith("diff --git "):
+            in_hunk = False
+            continue
+        if line.startswith("@@ "):
+            in_hunk = True
+            continue
+        if not in_hunk:
+            continue
+        if line.startswith("index ") or line.startswith("--- ") or line.startswith("+++ "):
+            continue
+        if line == "":
+            return False, f"invalid hunk at line {i}: empty line must be ' ' (single space) for context"
+        if line[0] not in (" ", "+", "-", "\\"):
+            return False, f"invalid hunk at line {i}: missing prefix (expected ' ', '+', '-', or '\\\\'): {line[:80]!r}"
+    return True, "ok"
+
+
 def validate_unified_diff(patch_text: str) -> PatchValidation:
     if not patch_text or not patch_text.strip():
         return PatchValidation(ok=False, reason="empty", cleaned="")
@@ -56,34 +86,9 @@ def validate_unified_diff(patch_text: str) -> PatchValidation:
         # Not always fatal, but we keep it strict for v1 safety
         return PatchValidation(ok=False, reason="patch contains non-diff prose/markers", cleaned=cleaned)
 
-    # Guard: inside hunks, every line must start with ' ', '+', '-', or '\'
-    # Blank context lines MUST be a single leading space + newline (" \n"), not an empty line.
-    in_hunk = False
-    for i, line in enumerate(cleaned.splitlines(), start=1):
-        if line.startswith("@@ "):
-            in_hunk = True
-            continue
-        # leave hunk when we hit next file header
-        if line.startswith("diff --git "):
-            in_hunk = False
-            continue
-        if not in_hunk:
-            continue
-        # allow metadata inside file blocks
-        if line.startswith(("--- ", "+++ ")):
-            continue
-        if line == "":
-            return PatchValidation(
-                ok=False,
-                reason=f"invalid hunk line (blank line without leading space) at line {i}",
-                cleaned=cleaned,
-            )
-        if not (line.startswith(" ") or line.startswith("+") or line.startswith("-") or line.startswith("\\")):
-            return PatchValidation(
-                ok=False,
-                reason=f"invalid hunk line prefix at line {i}: {line[:20]!r}",
-                cleaned=cleaned,
-            )
+    ok, reason = _validate_hunk_prefixes(cleaned)
+    if not ok:
+        return PatchValidation(ok=False, reason=reason, cleaned=cleaned)
 
     return PatchValidation(ok=True, reason="ok", cleaned=cleaned)
 

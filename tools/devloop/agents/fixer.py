@@ -23,6 +23,14 @@ Rules:
 - Prefer the smallest change that fixes the failure.
 - Do not refactor unrelated code.
 - Inside hunks, every unchanged/context line MUST start with a single leading space. Even blank lines must be written as a line containing exactly one space.
+
+Example (format matters):
+diff --git a/foo.py b/foo.py
+--- a/foo.py
++++ b/foo.py
+@@ -1,2 +1,3 @@
+  from x import y
++ # comment
 """
 
 

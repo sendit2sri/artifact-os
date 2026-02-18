@@ -24,6 +24,14 @@ Output:
 - Patch must apply with `git apply`.
 - Inside hunks, every unchanged/context line MUST start with a single leading space. Even blank lines must be written as a line containing exactly one space.
 
+Example (format matters):
+diff --git a/foo.py b/foo.py
+--- a/foo.py
++++ b/foo.py
+@@ -1,2 +1,3 @@
+  from x import y
++ # comment
+
 If no changes are needed, return an empty string.
 """
 

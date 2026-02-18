@@ -13,8 +13,8 @@ commands:
   gate: "make gate"
 
 models:
-  local: "qwen2.5-coder:7b"
   general: "qwen2.5:7b-instruct"
+  local: "qwen2.5-coder:14b"
   cloud: "gpt-4o"
 
 hybrid:
