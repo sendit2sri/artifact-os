@@ -1,0 +1,10 @@
+```
+diff --git a/tools/devloop/tests/test_main.py b/tools/devloop/tests/test_main.py
+--- a/tools/devloop/tests/test_main.py
++++ b/tools/devloop/tests/test_main.py
+@@ -10,6 +10,7 @@ def test_noop():
+     assert True
+     # No operation, this comment should cause the test to fail initially.
+ 
++    # [DevLoop Coder] This is a tiny comment for demonstration purposes.
+```

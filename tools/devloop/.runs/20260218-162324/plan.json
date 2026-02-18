@@ -1,0 +1,9 @@
+{
+  "files": [
+    "tools/devloop/tests/test_main.py"
+  ],
+  "steps": [
+    "Add a tiny comment in the test file"
+  ],
+  "notes": "This test should fail initially to demonstrate the new comment."
+}

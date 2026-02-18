@@ -15,8 +15,14 @@ class ParsedFailure:
     relevant_files: List[str]
 
 
-def parse_failure(stage: str, stdout: str, stderr: str) -> ParsedFailure:
+def parse_failure(
+    stage: str,
+    stdout: str,
+    stderr: str,
+    selected_files: Optional[List[str]] = None,
+) -> ParsedFailure:
     text = (stdout or "") + "\n" + (stderr or "")
+    selected = selected_files or []
 
     # ruff
     if stage == "backend_lint" and "ruff" in text.lower():
@@ -29,20 +35,31 @@ def parse_failure(stage: str, stdout: str, stderr: str) -> ParsedFailure:
         # fallback: pick any python filename mentioned
         m2 = re.search(r"([^\s]+?\.py)", text)
         file_guess = m2.group(1) if m2 else None
-        return ParsedFailure(stage, "ruff", file_guess, None, "Ruff failure (unparsed)", [file_guess] if file_guess else [])
+        relevant = [file_guess] if file_guess else []
+        # Always yield at least one relevant file: use selected_files when parse fails
+        if not relevant and selected:
+            return ParsedFailure(
+                stage, "ruff", file_guess, None,
+                "Ruff failure (fallback to selected files)",
+                selected,
+            )
+        return ParsedFailure(stage, "ruff", file_guess, None, "Ruff failure (unparsed)", relevant)
 
     # pytest
     if stage == "backend_unit":
         m = re.search(r"^(.*?\.py):(\d+):\s*(AssertionError|E\s+.*|.*FAILED.*)$", text, flags=re.MULTILINE)
         if m:
             return ParsedFailure(stage, "pytest", m.group(1), int(m.group(2)), m.group(3), [m.group(1)])
-        return ParsedFailure(stage, "pytest", None, None, "Pytest failure", [])
+        relevant = selected if selected else []
+        return ParsedFailure(stage, "pytest", None, None, "Pytest failure", relevant)
 
     # playwright / make gate
     if stage == "gate":
         m = re.search(r"›\s+(.*?\.spec\.(ts|js)):(\d+):(\d+)", text)
         if m:
             return ParsedFailure(stage, "playwright", m.group(1), int(m.group(3)), "Playwright failure", [m.group(1)])
-        return ParsedFailure(stage, "gate", None, None, "Gate failure", [])
+        relevant = selected if selected else []
+        return ParsedFailure(stage, "gate", None, None, "Gate failure", relevant)
 
-    return ParsedFailure(stage, "unknown", None, None, "Unknown failure", [])
+    relevant = selected if selected else []
+    return ParsedFailure(stage, "unknown", None, None, "Unknown failure", relevant)

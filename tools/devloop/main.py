@@ -10,15 +10,15 @@ import yaml
 from rich.console import Console
 from rich.panel import Panel
 
-from context.packer import pack_initial, read_files
-from context.parser import parse_failure
-from agents.planner import create_plan
-from agents.coder import generate_patch
-from agents.fixer import generate_fix
-from utils.shell import run_chain
-from utils.patch import apply_unified_diff
-from utils.patch_validate import validate_unified_diff
-from utils.git import ensure_clean_or_warn
+from tools.devloop.context.packer import pack_initial, read_files
+from tools.devloop.context.parser import parse_failure
+from tools.devloop.agents.planner import create_plan
+from tools.devloop.agents.coder import generate_patch
+from tools.devloop.agents.fixer import generate_fix
+from tools.devloop.utils.shell import run_chain
+from tools.devloop.utils.patch import apply_unified_diff
+from tools.devloop.utils.patch_validate import validate_unified_diff, check_patch_scope
+from tools.devloop.utils.git import ensure_clean_or_warn
 
 console = Console()
 
@@ -89,15 +89,27 @@ def main():
     # --- PLAN ---
     console.print(Panel(f"[bold]Task[/bold]: {args.task}\n[bold]Repo[/bold]: {repo_root}", title="DevLoop INIT"))
     diff_for_plan = pack_initial(repo_root, files=[]).diff
-    plan = create_plan(args.task, diff_for_plan, cfg["models"], cfg["hybrid"])
+    plan = create_plan(args.task, diff_for_plan, cfg["models"], cfg["hybrid"], files_hint=args.files)
     (run_dir / "plan.json").write_text(json.dumps(plan, indent=2), encoding="utf-8")
     console.print(Panel(json.dumps(plan, indent=2), title="PLAN (JSON)"))
 
-    files = plan.get("files", []) or []
-    # add CLI hints
-    for f in args.files:
-        if f not in files:
-            files.append(f)
+    # If --files provided, trust it. Else use plan files filtered to existing.
+    if args.files:
+        files = [f for f in args.files if (Path(repo_root) / f).exists()]
+        if not files:
+            console.print(Panel("--files paths do not exist.", title="STOPPED", style="red"))
+            return
+    else:
+        files = [f for f in (plan.get("files", []) or []) if (Path(repo_root) / f).exists()]
+        if not files:
+            console.print(
+                Panel(
+                    "Planner picked non-existent files. Rerun with --files <existing_path>.",
+                    title="STOPPED",
+                    style="red",
+                )
+            )
+            return
 
     if shadow_mode:
         yn = input(f"Shadow mode is ON. Apply changes to files {files}? (y/n): ").strip().lower()
@@ -117,6 +129,17 @@ def main():
             console.print("Stopping to avoid corrupt apply. See patch.diff in run artifacts.")
             return
 
+        scope = check_patch_scope(pv.cleaned, files)
+        if not scope.ok:
+            console.print(
+                Panel(
+                    f"{scope.reason}\n\nTouched: {scope.touched}\nOutside: {scope.outside}",
+                    title="PATCH OUT OF SCOPE",
+                    style="red",
+                )
+            )
+            return
+
         ap_res = apply_unified_diff(repo_root, pv.cleaned)
         if not ap_res.ok:
             console.print(Panel(ap_res.message, title="PATCH APPLY FAILED", style="red"))
@@ -134,7 +157,7 @@ def main():
             console.print(Panel("All checks passed ✅", title="DONE", style="green"))
             return
 
-        failure = parse_failure(stage, out, err)
+        failure = parse_failure(stage, out, err, selected_files=files)
         failure_dict = {
             "stage": failure.stage,
             "kind": failure.kind,
@@ -150,10 +173,36 @@ def main():
             console.print(Panel("Max retries reached. Stopping.", title="STOPPED", style="red"))
             return
 
-        # expand context: include failure file + any relevant files
-        relevant = [p for p in (failure.relevant_files or []) if p]
-        if failure.file and failure.file not in relevant:
+        # expand context: include failure file + any relevant files (only existing paths)
+        repo = Path(repo_root)
+        relevant = [p for p in (failure.relevant_files or []) if p and (repo / p).exists()]
+        if failure.file and (repo / failure.file).exists() and failure.file not in relevant:
             relevant.append(failure.file)
+        if not relevant and files:
+            relevant = list(files)  # fallback to selected_files (already filtered to existing)
+        if not relevant:
+            console.print(Panel("No existing files to fix. Stopping.", title="STOPPED", style="red"))
+            return
+
+        # Fixer creep policy: scope = files. If failure is outside files, ask to expand (shadow only)
+        outside = [p for p in relevant if p not in files]
+        if outside:
+            if shadow_mode:
+                yn = input(f"Expand scope to include {outside}? (y/n): ").strip().lower()
+                if yn == "y":
+                    files = list(set(files) | set(outside))
+                else:
+                    console.print("Stopping (scope not expanded).")
+                    return
+            else:
+                console.print(
+                    Panel(
+                        f"Failure in {outside} outside allowed scope. Run with --shadow to expand.",
+                        title="STOPPED",
+                        style="red",
+                    )
+                )
+                return
 
         fix_files_map = read_files(repo_root, relevant)
         fix_patch = generate_fix(failure_dict, fix_files_map, cfg["models"], cfg["hybrid"])
@@ -167,6 +216,17 @@ def main():
         if not pv.ok:
             console.print(Panel(pv.cleaned[:2000], title=f"INVALID FIX PATCH (reason: {pv.reason})", style="red"))
             console.print("Stopping to avoid corrupt apply. See fix_patch diff in run artifacts.")
+            return
+
+        scope = check_patch_scope(pv.cleaned, files)
+        if not scope.ok:
+            console.print(
+                Panel(
+                    f"{scope.reason}\n\nTouched: {scope.touched}\nOutside: {scope.outside}",
+                    title="FIX PATCH OUT OF SCOPE",
+                    style="red",
+                )
+            )
             return
 
         ap_res = apply_unified_diff(repo_root, pv.cleaned)

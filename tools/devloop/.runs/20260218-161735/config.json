@@ -1,0 +1,22 @@
+{
+  "project_root": "../..",
+  "shadow_mode": true,
+  "max_retries": 3,
+  "verify_chain": [
+    "backend_lint",
+    "backend_unit",
+    "gate"
+  ],
+  "commands": {
+    "backend_lint": "cd apps/backend && ruff check .",
+    "backend_unit": "cd apps/backend && PYTHONPATH=. pytest -q",
+    "gate": "make gate"
+  },
+  "models": {
+    "local": "llama3.2",
+    "cloud": "gpt-4"
+  },
+  "hybrid": {
+    "allow_cloud_env": "HYBRID_ALLOW_CLOUD"
+  }
+}

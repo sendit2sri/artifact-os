@@ -1,0 +1,21 @@
+project_root: "../.."
+shadow_mode: true
+max_retries: 3
+
+verify_chain:
+  - backend_lint
+  - backend_unit
+  - gate
+
+commands:
+  backend_lint: "cd apps/backend && ruff check ."
+  backend_unit: "cd apps/backend && PYTHONPATH=. pytest -q"
+  gate: "make gate"
+
+models:
+  local: "qwen2.5-coder:7b"
+  general: "qwen2.5:7b-instruct"
+  cloud: "gpt-4o"
+
+hybrid:
+  allow_cloud_env: "HYBRID_ALLOW_CLOUD"
