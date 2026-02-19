@@ -93,6 +93,10 @@ Start here: [[README]] — buckets and naming.
 - [[solutions/E2E_TEST_FAILURES_SEED_DATA_MISMATCH]] 🔍 — Detailed diagnosis: search query mismatch (Feb 2026)
 - [[solutions/DOCKER_COMMANDS]]
 
+## Tools / DevLoop
+- `tools/devloop/TASK.md` — Single source of truth for DevLoop tasks
+- `tools/devloop/DEVLOOP_PLAYBOOK.md` — DevLoop playbook (usage, config, troubleshooting)
+
 ## Misc
 - [[misc/]]
 - [[misc/docs-rules]]

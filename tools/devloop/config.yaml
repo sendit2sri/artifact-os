@@ -8,9 +8,9 @@ verify_chain:
   - gate
 
 commands:
-  backend_lint: "cd apps/backend && ruff check ."
-  backend_unit: "cd apps/backend && PYTHONPATH=. pytest -q"
-  gate: "make gate"
+  backend_lint: "cd apps/backend && .venv/bin/python -m ruff check ."
+  backend_unit: "cd apps/backend && PYTHONPATH=. DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/artifact_test .venv/bin/python -m pytest -q"
+  gate: "make e2e-sanity"
 
 models:
   general: "qwen2.5:7b-instruct"
@@ -19,3 +19,5 @@ models:
 
 hybrid:
   allow_cloud_env: "HYBRID_ALLOW_CLOUD"
+  ollama_base: "http://localhost:11434"
+  timeouts_s: [120, 240, 300]

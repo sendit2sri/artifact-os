@@ -34,6 +34,7 @@ def create_plan(
     models: Dict[str, str],
     hybrid_cfg: Dict[str, Any],
     files_hint: Optional[List[str]] = None,
+    return_llm: bool = False,
 ) -> Dict[str, Any]:
     files_constraint = ""
     if files_hint:
@@ -41,8 +42,11 @@ def create_plan(
     prompt = PLANNER_PROMPT.format(task=task, files_constraint=files_constraint)
     if diff:
         prompt += f"\n\nCurrent diff (for context):\n{diff[:8000]}"
-    resp = chat_hybrid(task, prompt, models, hybrid_cfg)
+    resp = chat_hybrid(task, prompt, models, hybrid_cfg, role="planner")
     try:
-        return json.loads(resp.content)
+        plan = json.loads(resp.content)
     except json.JSONDecodeError:
-        return {"files": [], "steps": [], "notes": "Parse failed"}
+        plan = {"files": [], "steps": [], "notes": "Parse failed"}
+    if return_llm:
+        return {"plan": plan, "llm": resp}
+    return plan

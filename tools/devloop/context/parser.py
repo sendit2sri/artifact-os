@@ -24,34 +24,92 @@ def parse_failure(
     text = (stdout or "") + "\n" + (stderr or "")
     selected = selected_files or []
 
-    # ruff
-    if stage == "backend_lint" and "ruff" in text.lower():
-        # Common formats:
-        # path/to/file.py:12:5: F401 `x` imported but unused
-        # Found 1 error.
-        m = re.search(r"^(.*?\.py):(\d+):(\d+):\s*([A-Z]\d{3,4}.*)$", text, flags=re.MULTILINE)
-        if m:
-            return ParsedFailure(stage, "ruff", m.group(1), int(m.group(2)), m.group(4), [m.group(1)])
-        # fallback: pick any python filename mentioned
+    # ruff (also try when stage is unknown but output looks like ruff)
+    if stage == "backend_lint" or (stage == "unknown" and ("-->" in text or "ruff" in text.lower())):
+        _RUFF_LOC = re.compile(r"^\s*-->\s+(.+?):(\d+):(\d+)\s*$", re.MULTILINE)
+        _RUFF_CODE = re.compile(r"^(?P<code>[A-Z]\d{3})\b", re.MULTILINE)
+
+        # Try annotated format first (E402 ... --> alembic/env.py:13:1)
+        m_loc = _RUFF_LOC.search(text)
+        if m_loc:
+            path = m_loc.group(1).strip()
+            line_no = int(m_loc.group(2))
+            m_code = _RUFF_CODE.search(text)
+            code = m_code.group("code") if m_code else "ruff"
+            # Ruff runs from apps/backend, so paths are relative to that
+            file_path = f"apps/backend/{path}" if not path.startswith("apps/") else path
+            return ParsedFailure(
+                stage="backend_lint" if stage == "unknown" else stage,
+                kind="ruff",
+                file=file_path,
+                line=line_no,
+                message=f"Ruff {code}",
+                relevant_files=[file_path],
+            )
+
+        # Fallback: old format path.py:12:5: F401 ...
+        m_old = re.search(
+            r"(?m)^(.*?\.py):(\d+):(\d+):\s*([A-Z]\d{3,4}.*)$",
+            text,
+        )
+        if m_old:
+            path = m_old.group(1)
+            file_path = f"apps/backend/{path}" if not path.startswith("apps/") else path
+            return ParsedFailure(
+                stage="backend_lint" if stage == "unknown" else stage,
+                kind="ruff",
+                file=file_path,
+                line=int(m_old.group(2)),
+                message=m_old.group(4),
+                relevant_files=[file_path],
+            )
+
+        # Last resort: pick any python filename (no selected_files fallback for backend_lint)
         m2 = re.search(r"([^\s]+?\.py)", text)
         file_guess = m2.group(1) if m2 else None
+        if file_guess and not file_guess.startswith("apps/"):
+            file_guess = f"apps/backend/{file_guess}"
         relevant = [file_guess] if file_guess else []
-        # Always yield at least one relevant file: use selected_files when parse fails
-        if not relevant and selected:
-            return ParsedFailure(
-                stage, "ruff", file_guess, None,
-                "Ruff failure (fallback to selected files)",
-                selected,
-            )
         return ParsedFailure(stage, "ruff", file_guess, None, "Ruff failure (unparsed)", relevant)
 
     # pytest
     if stage == "backend_unit":
-        m = re.search(r"^(.*?\.py):(\d+):\s*(AssertionError|E\s+.*|.*FAILED.*)$", text, flags=re.MULTILINE)
-        if m:
-            return ParsedFailure(stage, "pytest", m.group(1), int(m.group(2)), m.group(3), [m.group(1)])
-        relevant = selected if selected else []
-        return ParsedFailure(stage, "pytest", None, None, "Pytest failure", relevant)
+        # Prefer stack frames, but ignore venv/site-packages
+        frame_re = re.compile(r"(?m)^([a-zA-Z0-9_./-]+\.py):(\d+):\s+in\s+")
+        for m in frame_re.finditer(text):
+            path = m.group(1).strip()
+
+            # skip virtualenv / deps
+            if (
+                "/site-packages/" in path
+                or path.startswith(".venv/")
+                or "/.venv/" in path
+                or path.startswith("/opt/")
+                or path.startswith("/usr/")
+                or path.startswith("/System/")
+            ):
+                continue
+
+            # normalize pytest cwd (apps/backend)
+            file_path = f"apps/backend/{path}" if not path.startswith("apps/") else path
+
+            return ParsedFailure(
+                stage=stage,
+                kind="pytest",
+                file=file_path,
+                line=int(m.group(2)),
+                message="Pytest failure",
+                relevant_files=[file_path],
+            )
+
+        # Fallback: "ERROR collecting tests/xxx.py"
+        m2 = re.search(r"(?m)^ERROR collecting ([a-zA-Z0-9_./-]+\.py)\s*$", text)
+        if m2:
+            path = m2.group(1).strip()
+            file_path = f"apps/backend/{path}" if not path.startswith("apps/") else path
+            return ParsedFailure(stage, "pytest", file_path, None, "Pytest failure", [file_path])
+
+        return ParsedFailure(stage, "pytest", None, None, "Pytest failure", selected or [])
 
     # playwright / make gate
     if stage == "gate":

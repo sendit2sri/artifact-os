@@ -15,3 +15,4 @@ playwright-report/
 # DevLoop run artifacts
 tools/devloop/.runs/
 devloop_hardening.patch
+apps/backend/test.db
