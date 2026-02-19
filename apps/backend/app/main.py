@@ -107,11 +107,15 @@ class UpdateJobRequest(BaseModel):
 def update_fact(fact_id: str, payload: UpdateFactRequest):
     with Session(engine) as db:
         fact = db.get(ResearchNode, fact_id)
-        if not fact: raise HTTPException(status_code=404, detail="Fact not found")
-        
-        if payload.fact_text is not None: fact.fact_text = payload.fact_text
-        if payload.is_key_claim is not None: fact.is_key_claim = payload.is_key_claim
-        if payload.is_pinned is not None: fact.is_pinned = payload.is_pinned
+        if not fact:
+            raise HTTPException(status_code=404, detail="Fact not found")
+
+        if payload.fact_text is not None:
+            fact.fact_text = payload.fact_text
+        if payload.is_key_claim is not None:
+            fact.is_key_claim = payload.is_key_claim
+        if payload.is_pinned is not None:
+            fact.is_pinned = payload.is_pinned
 
         # ✅ STEP #7: Respect manual review_status override
         # If user explicitly sets review_status, always honor it (even for low confidence)
@@ -130,10 +134,14 @@ def batch_update_facts(payload: BatchUpdateFactsRequest):
         results = db.exec(statement).all()
         
         for fact in results:
-            if payload.updates.fact_text is not None: fact.fact_text = payload.updates.fact_text
-            if payload.updates.is_key_claim is not None: fact.is_key_claim = payload.updates.is_key_claim
-            if payload.updates.review_status is not None: fact.review_status = payload.updates.review_status
-            if payload.updates.is_pinned is not None: fact.is_pinned = payload.updates.is_pinned
+            if payload.updates.fact_text is not None:
+                fact.fact_text = payload.updates.fact_text
+            if payload.updates.is_key_claim is not None:
+                fact.is_key_claim = payload.updates.is_key_claim
+            if payload.updates.review_status is not None:
+                fact.review_status = payload.updates.review_status
+            if payload.updates.is_pinned is not None:
+                fact.is_pinned = payload.updates.is_pinned
             db.add(fact)
             
         db.commit()
@@ -143,7 +151,8 @@ def batch_update_facts(payload: BatchUpdateFactsRequest):
 def delete_fact(fact_id: str):
     with Session(engine) as db:
         fact = db.get(ResearchNode, fact_id)
-        if not fact: raise HTTPException(status_code=404, detail="Fact not found")
+        if not fact:
+            raise HTTPException(status_code=404, detail="Fact not found")
         db.delete(fact)
         db.commit()
         return {"ok": True}
@@ -152,7 +161,8 @@ def delete_fact(fact_id: str):
 def update_job(job_id: str, payload: UpdateJobRequest):
     with Session(engine) as db:
         job = db.get(Job, job_id)
-        if not job: raise HTTPException(status_code=404, detail="Job not found")
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
         
         from sqlalchemy.orm.attributes import flag_modified
         if payload.summary is not None:

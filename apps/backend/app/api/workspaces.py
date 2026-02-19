@@ -3,7 +3,6 @@ Workspaces and user preferences API.
 E2E mode: deterministic Personal + Team workspaces when auth not implemented.
 """
 import os
-import uuid
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException

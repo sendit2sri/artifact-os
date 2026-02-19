@@ -8,7 +8,7 @@ Converts raw extraction dumps into structured, readable markdown with:
 """
 
 import re
-from typing import List, Tuple, Optional
+from typing import List, Optional
 
 
 def format_for_reader(text: str) -> str:
