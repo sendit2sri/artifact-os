@@ -4,6 +4,7 @@ import traceback
 from typing import Dict, Optional, Tuple
 from sqlmodel import Session, select
 from app.db.session import engine
+from app.utils.ids import as_uuid
 from app.workers.celery_app import celery_app
 from app.models import Job, JobStatus, SourceDoc, ResearchNode, IntegrityStatus, ReviewStatus, SourceType, NodeType
 from app.services.llm import extract_facts_from_markdown
@@ -67,7 +68,9 @@ def find_quote_offsets(content: Optional[str], quote: str) -> Tuple[Optional[int
         return (start, start + len(quote))
     
     # Try normalized whitespace match
-    normalize = lambda s: ' '.join(s.split())
+    def normalize(s: str) -> str:
+        return ' '.join(s.split())
+
     norm_content = normalize(lower_content)
     norm_quote = normalize(lower_quote)
     
@@ -233,10 +236,12 @@ def _set_job_failed(job, error_code: str, error_message: str, result_summary: Op
     job.result_summary["error_message"] = error_message
 
 
-def ingest_url_task(self, job_id: str, url: str):
+def ingest_url_task(self, job_id: str | uuid.UUID, url: str) -> None:
+    job_id = as_uuid(job_id)
     with Session(engine) as db:
         job = db.get(Job, job_id)
-        if not job: return
+        if not job:
+            return
         params = job.params or {}
         source_type = SourceType(params.get("source_type", "WEB")) if params.get("source_type") else detect_source_type(url)
         canonical_url = params.get("canonical_url") or normalize_url(url, source_type)
@@ -353,7 +358,7 @@ def ingest_url_task(self, job_id: str, url: str):
                     text_content = "\n\n".join(parts)
                     content_formats["text_raw"] = text_content
                 elif source_type == SourceType.YOUTUBE:
-                    page_title = extracted.get("title", "") or f"YouTube video"
+                    page_title = extracted.get("title", "") or "YouTube video"
                     transcript = extracted.get("transcript", [])
                     parts = []
                     metadata_json = {"video_url": extracted.get("video_url", url), "transcript": [{"start_s": s.get("start_s"), "end_s": s.get("end_s")} for s in transcript]}

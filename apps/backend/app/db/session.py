@@ -12,8 +12,6 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-print(f"✅ Connecting to Database: {DATABASE_URL}")
-
 # 4. Create SYNC Engine (Correct for psycopg2)
 engine = create_engine(DATABASE_URL, echo=False)
 
