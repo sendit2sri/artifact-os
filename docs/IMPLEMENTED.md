@@ -25,6 +25,7 @@ Shipped work with git evidence. No speculation—only commit hashes + changed fi
 | `52b9886` | chore(alembic): remove unused imports in migrations | Migration files |
 | `6a4392f` | Backend: ruff fixes, TEST_PROJECT_ID, E701/E722 | `test_helpers.py`, `workspaces.py`, extractors, main, schemas, firecrawl, llm, content_formatter |
 | *feat/v4a-ingest-rules* | V4a: Ingest rules CRUD | `models.py` (IngestRule), `projects.py` (list/create/delete), migration `y8b9c0d1e2f`, `test_ingest_rules.py` |
+| `32e9c30` | feat: Krisp V1 media upload | `ingest.py`, `ingest_task.py` (ingest_media_task), `transcribe.py`, migration `x7a8b9c0d1e2`, `AddSourceSheet.tsx`, `SourceTracker.tsx`, `sources-add-media.spec.ts` |
 
 ---
 
@@ -39,7 +40,7 @@ Shipped work with git evidence. No speculation—only commit hashes + changed fi
 - **Utils:** ids (UUID normalization), content_formatter
 - **Tests:** content_formatter, ingest_review_status, is_suppressed_filter
 
-Evidence: `e7f12f2`, `7287a4c`, `f668d6a`, `3bd9442`, `6a4392f`, feat/v4a-ingest-rules (IngestRule, ingest-rules API)
+Evidence: `e7f12f2`, `7287a4c`, `f668d6a`, `3bd9442`, `6a4392f`, feat/v4a-ingest-rules, feat/krisp-v1-media-upload (IngestRule, ingest-rules API, media upload + Whisper)
 
 ### Web (apps/web)
 

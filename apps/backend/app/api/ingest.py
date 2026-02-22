@@ -1,3 +1,4 @@
+import os
 import uuid
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from pydantic import BaseModel
@@ -136,6 +137,18 @@ def ingest_url(payload: IngestURLRequest, db: Session = Depends(get_session)):
         print(f"Ingest error: {e}")
         raise HTTPException(status_code=500, detail="Failed to add source. Please try again.")
 
+MEDIA_EXTENSIONS = {".mp3", ".wav", ".m4a", ".webm", ".ogg", ".mp4", ".m4v", ".mov"}
+MAX_MEDIA_MB = int(os.environ.get("MAX_MEDIA_UPLOAD_MB", "100"))
+
+
+def _is_media_file(filename: str) -> bool:
+    if not filename:
+        return False
+    parts = filename.rsplit(".", 1)
+    ext = ("." + parts[1].lower()) if len(parts) > 1 else ""
+    return ext in MEDIA_EXTENSIONS
+
+
 @router.post("/ingest/file")
 async def ingest_file(
     project_id: str,
@@ -143,34 +156,46 @@ async def ingest_file(
     file: UploadFile = File(...),
     db: Session = Depends(get_session)
 ):
-    """Create a job to ingest an uploaded file"""
+    """Create a job to ingest an uploaded file (audio/video → transcribe → facts)"""
     try:
-        # Save file temporarily
-        import os
+        filename = file.filename or "upload"
+        if not _is_media_file(filename):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Media only. Supported: {', '.join(sorted(MEDIA_EXTENSIONS))}",
+            )
+
+        contents = await file.read()
+        size_mb = len(contents) / (1024 * 1024)
+        if size_mb > MAX_MEDIA_MB:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Max {MAX_MEDIA_MB}MB.",
+            )
+
         upload_dir = "/tmp/research_uploads"
         os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, file.filename or "upload.txt")
-        
-        contents = await file.read()
+        file_path = os.path.join(upload_dir, filename)
+
         with open(file_path, "wb") as f:
             f.write(contents)
-        
+
         job = Job(
             id=uuid.uuid4(),
             project_id=uuid.UUID(project_id),
             workspace_id=uuid.UUID(workspace_id),
             type="file_ingest",
             status=JobStatus.PENDING,
-            idempotency_key=f"{project_id}:{file.filename}",
-            params={"filename": file.filename, "path": file_path}
+            idempotency_key=f"{project_id}:file:{filename}",
+            params={"filename": filename, "path": file_path, "source_type": "MEDIA"},
         )
         db.add(job)
         db.commit()
         db.refresh(job)
-        
-        # Queue processing task (you'd need to create this)
-        # celery_app.send_task("ingest_file", args=[str(job.id), file_path])
-        
+
+        celery_app.send_task("ingest_media", args=[str(job.id)])
         return job
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

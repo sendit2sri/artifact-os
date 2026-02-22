@@ -206,7 +206,6 @@ def _resolve_fact_source_url(section_context: Optional[str], source_type: Source
             return (ctx, doc_url)
     # YouTube: [start-end] or yt:start-end -> source_url = video_url
     if source_type == SourceType.YOUTUBE:
-        import re
         m = re.search(r"\[?(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)\]?|yt:(\d+\.?\d*)-(\d+\.?\d*)", ctx)
         if m:
             g = m.groups()
@@ -215,6 +214,11 @@ def _resolve_fact_source_url(section_context: Optional[str], source_type: Source
                 return (f"yt:{s}-{e}", metadata.get("video_url") or doc_url)
         if ctx.startswith("yt:"):
             return (ctx, metadata.get("video_url") or doc_url)
+    # Media (uploaded audio/video): [start-end] -> doc_url (media://...)
+    if source_type == SourceType.MEDIA:
+        m = re.search(r"\[?(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)\]?", ctx)
+        if m and m.group(1) and m.group(2):
+            return (f"yt:{m.group(1)}-{m.group(2)}", doc_url)
     return (section_context, None)
 
 
@@ -226,7 +230,7 @@ JOB_STEP_FACTING = "FACTING"
 JOB_STEP_DONE = "DONE"
 JOB_STEP_FAILED = "FAILED"
 
-ERROR_CODES = ("NETWORK", "RATE_LIMIT", "PAYWALL", "UNSUPPORTED", "EMPTY_CONTENT", "TRANSCRIPT_DISABLED")
+ERROR_CODES = ("NETWORK", "RATE_LIMIT", "PAYWALL", "UNSUPPORTED", "EMPTY_CONTENT", "TRANSCRIPT_DISABLED", "TRANSCRIPT_FAILED")
 
 def _set_job_failed(job, error_code: str, error_message: str, result_summary: Optional[dict] = None):
     job.status = JobStatus.FAILED
@@ -360,6 +364,16 @@ def ingest_url_task(self, job_id: str | uuid.UUID, url: str) -> None:
                 elif source_type == SourceType.YOUTUBE:
                     page_title = extracted.get("title", "") or "YouTube video"
                     transcript = extracted.get("transcript", [])
+                    if not transcript:
+                        _set_job_failed(
+                            job,
+                            "TRANSCRIPT_DISABLED",
+                            "Captions are not available. Upload an audio file instead.",
+                            {"source_title": page_title, "source_type": source_type.value},
+                        )
+                        db.add(job)
+                        db.commit()
+                        return
                     parts = []
                     metadata_json = {"video_url": extracted.get("video_url", url), "transcript": [{"start_s": s.get("start_s"), "end_s": s.get("end_s")} for s in transcript]}
                     for seg in transcript:
@@ -515,5 +529,150 @@ def ingest_url_task(self, job_id: str | uuid.UUID, url: str) -> None:
             if len(user_message) > 120:
                 user_message = user_message[:117] + "..."
             _set_job_failed(job, error_code, user_message, getattr(job, "result_summary", None))
+            db.add(job)
+            db.commit()
+
+
+@celery_app.task(bind=True, name="ingest_media", soft_time_limit=300, time_limit=600)
+def ingest_media_task(self, job_id: str) -> None:
+    """Transcribe uploaded audio/video and extract facts."""
+    job_id = as_uuid(job_id)
+    with Session(engine) as db:
+        job = db.get(Job, job_id)
+        if not job or job.type != "file_ingest":
+            return
+        params = job.params or {}
+        file_path = params.get("path")
+        filename = params.get("filename", "media")
+
+        if not file_path:
+            _set_job_failed(job, "UNSUPPORTED", "Missing file path", params)
+            db.add(job)
+            db.commit()
+            return
+
+        try:
+            job.current_step = JOB_STEP_EXTRACTING
+            job.status = JobStatus.RUNNING
+            db.add(job)
+            db.commit()
+
+            from app.services.transcribe import transcribe_audio
+
+            segments = transcribe_audio(file_path)
+            parts = [f"## [{s.get('start_s', 0)}-{s.get('end_s', 0)}]\n{s.get('text', '')}" for s in segments]
+            text_content = "\n\n".join(parts) if parts else ""
+
+            if not (text_content or "").strip():
+                _set_job_failed(job, "EMPTY_CONTENT", "No speech could be transcribed.", params)
+                db.add(job)
+                db.commit()
+                return
+
+            content_formats = {"text_raw": text_content, "markdown": text_content, "html_clean": None}
+            metadata_json = {"filename": filename, "path": file_path, "transcript": segments}
+            content_hash = hashlib.md5((text_content or "").encode("utf-8")).hexdigest()
+            media_url = f"media://{job.project_id}/{content_hash}"
+            page_title = filename
+
+            source_doc = SourceDoc(
+                id=uuid.uuid4(),
+                project_id=job.project_id,
+                workspace_id=job.workspace_id,
+                url=media_url,
+                domain="media",
+                title=page_title,
+                source_type=SourceType.MEDIA,
+                canonical_url=media_url,
+                metadata_json=metadata_json,
+                content_text=text_content,
+                content_text_raw=content_formats["text_raw"],
+                content_markdown=content_formats["markdown"],
+                content_html_clean=content_formats["html_clean"],
+                content_s3_path="",
+                content_hash=content_hash,
+            )
+            db.add(source_doc)
+            db.commit()
+            db.refresh(source_doc)
+
+            job.current_step = JOB_STEP_FACTING
+            job.steps_completed = 3
+            db.add(job)
+            db.commit()
+
+            extraction_result = extract_facts_from_markdown((text_content or "")[:25000])
+
+            job.current_step = JOB_STEP_FACTING
+            job.steps_completed = 4
+            db.add(job)
+            db.commit()
+
+            saved_count = 0
+            auto_flagged_count = 0
+            for fact_data in extraction_result.facts:
+                try:
+                    confidence_score = 85 if fact_data.confidence == "HIGH" else (60 if fact_data.confidence == "MEDIUM" else 40)
+                    review_status = ReviewStatus.PENDING if confidence_score >= 75 else ReviewStatus.NEEDS_REVIEW
+                    if review_status == ReviewStatus.NEEDS_REVIEW:
+                        auto_flagged_count += 1
+                    quote = fact_data.quote_span
+                    start_raw, end_raw = find_quote_offsets(content_formats["text_raw"], quote)
+                    start_md, end_md = find_quote_offsets(content_formats.get("markdown"), quote)
+                    evidence_snippet = quote[:500] if quote and len(quote) > 10 else None
+                    if evidence_snippet and len(quote or "") > 500:
+                        evidence_snippet = quote[:500]
+                    sect_ctx, fact_source_url = _resolve_fact_source_url(
+                        fact_data.section_context, SourceType.MEDIA, metadata_json, media_url
+                    )
+                    fact = ResearchNode(
+                        id=uuid.uuid4(),
+                        project_id=job.project_id,
+                        source_doc_id=source_doc.id,
+                        fact_text=fact_data.fact_text,
+                        is_key_claim=fact_data.is_key_claim,
+                        confidence_score=confidence_score,
+                        section_context=sect_ctx or fact_data.section_context,
+                        source_url=fact_source_url,
+                        quote_text_raw=quote,
+                        evidence_snippet=evidence_snippet,
+                        evidence_start_char_raw=start_raw,
+                        evidence_end_char_raw=end_raw,
+                        evidence_start_char_md=start_md,
+                        evidence_end_char_md=end_md,
+                        tags=fact_data.tags or [],
+                        review_status=review_status
+                    )
+                    db.add(fact)
+                    saved_count += 1
+                except Exception as e:
+                    print(f"⚠️ Failed to save fact '{fact_data.fact_text[:30]}...': {e}")
+                    continue
+
+            job.status = JobStatus.COMPLETED
+            job.current_step = JOB_STEP_DONE
+            job.steps_completed = 5
+            job.result_summary = {
+                "source_title": page_title,
+                "facts_count": saved_count,
+                "auto_flagged_count": auto_flagged_count,
+                "summary": extraction_result.summary_brief,
+                "source_type": "MEDIA",
+            }
+            db.add(job)
+            db.commit()
+
+        except Exception as e:
+            db.rollback()
+            traceback.print_exc()
+            job = db.get(Job, job_id)
+            if not job:
+                return
+            err_msg = str(e).lower()
+            error_code = "TRANSCRIPT_FAILED" if "transcribe" in err_msg or "whisper" in err_msg or "file" in err_msg else "UNSUPPORTED"
+            user_message = str(e)
+            if len(user_message) > 120:
+                user_message = user_message[:117] + "..."
+            _set_job_failed(job, error_code, user_message, params)
             db.add(job)
             db.commit()
