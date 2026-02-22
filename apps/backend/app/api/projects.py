@@ -11,7 +11,7 @@ from uuid import UUID
 from datetime import datetime
 
 from app.db.session import get_session
-from app.models import Project, Job, ResearchNode, SourceDoc, Output, ReviewStatus, JobStatus
+from app.models import Project, Job, ResearchNode, SourceDoc, Output, ReviewStatus, JobStatus, IngestRule
 
 router = APIRouter()
 
@@ -165,6 +165,75 @@ def export_project(
     else:
         raise HTTPException(status_code=400, detail=f"Invalid format: {format}")
 
+# --- Ingest Rules (V4a) ---
+
+class IngestRuleCreate(BaseModel):
+    type: str  # folder_watch | rss_ingest | scheduled_url
+    config_json: Dict[str, Any] = {}
+
+class IngestRuleRead(BaseModel):
+    id: str
+    project_id: str
+    type: str
+    config_json: Dict[str, Any]
+    enabled: bool
+    created_at: Any
+
+@router.get("/projects/{project_id}/ingest-rules")
+def list_ingest_rules(project_id: str, db: Session = Depends(get_session)):
+    """List auto-ingest rules for a project (V4a)."""
+    try:
+        p_uuid = UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID")
+    project = db.get(Project, p_uuid)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    rules = db.exec(select(IngestRule).where(IngestRule.project_id == p_uuid).order_by(IngestRule.created_at)).all()
+    return [
+        {"id": str(r.id), "project_id": str(r.project_id), "type": r.type, "config_json": r.config_json or {}, "enabled": r.enabled, "created_at": r.created_at}
+        for r in rules
+    ]
+
+@router.post("/projects/{project_id}/ingest-rules")
+def create_ingest_rule(project_id: str, body: IngestRuleCreate, db: Session = Depends(get_session)):
+    """Create an auto-ingest rule (V4a). Types: folder_watch, rss_ingest, scheduled_url."""
+    try:
+        p_uuid = UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID")
+    if body.type not in ("folder_watch", "rss_ingest", "scheduled_url"):
+        raise HTTPException(status_code=400, detail="type must be folder_watch, rss_ingest, or scheduled_url")
+    project = db.get(Project, p_uuid)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    rule = IngestRule(
+        project_id=p_uuid,
+        type=body.type,
+        config_json=body.config_json or {},
+        enabled=True,
+    )
+    db.add(rule)
+    db.commit()
+    db.refresh(rule)
+    return {"id": str(rule.id), "project_id": str(rule.project_id), "type": rule.type, "config_json": rule.config_json or {}, "enabled": rule.enabled, "created_at": rule.created_at}
+
+@router.delete("/projects/{project_id}/ingest-rules/{rule_id}")
+def delete_ingest_rule(project_id: str, rule_id: str, db: Session = Depends(get_session)):
+    """Delete an ingest rule (V4a)."""
+    try:
+        p_uuid = UUID(project_id)
+        r_uuid = UUID(rule_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID")
+    rule = db.get(IngestRule, r_uuid)
+    if not rule or rule.project_id != p_uuid:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    db.delete(rule)
+    db.commit()
+    return {"status": "ok"}
+
+
 @router.post("/projects/{project_id}/reset")
 def reset_project(project_id: str, db: Session = Depends(get_session)):
     try:
@@ -173,6 +242,7 @@ def reset_project(project_id: str, db: Session = Depends(get_session)):
         raise HTTPException(status_code=400, detail="Invalid UUID")
 
     # Delete in order of dependencies
+    db.exec(delete(IngestRule).where(IngestRule.project_id == p_uuid))
     db.exec(delete(ResearchNode).where(ResearchNode.project_id == p_uuid))
     db.exec(delete(Job).where(Job.project_id == p_uuid))
     db.exec(delete(SourceDoc).where(SourceDoc.project_id == p_uuid))
