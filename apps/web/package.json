@@ -69,6 +69,7 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "eslint": "^10",
-    "eslint-config-next": "16.1.6"
+    "eslint-config-next": "16.1.6",
+    "eslint-plugin-react-hooks": "^7.0.0"
   }
 }
