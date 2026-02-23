@@ -24,7 +24,7 @@ import { ProjectOverview } from "@/components/ProjectOverview";
 import { OnboardingOverlay, getOnboardingCompleted } from "@/components/OnboardingOverlay";
 import { PhaseIndicator, PhaseStatusLine, PhaseProgressBar } from "@/components/PhaseIndicator";
 import { computeAppPhase, getPhaseCTA, canPerformAction } from "@/lib/phase";
-import { fetchProject, fetchProjectFacts, fetchProjectJobs, ingestUrl, resetProject, synthesizeFacts, Fact, Job, uploadFile, batchUpdateFacts, Output, fetchProjectOutputs, fetchOutput, patchOutput, OutputSummary, updateProjectName, seedDemoProject, seedDemoSources, retrySource, updateFact, dedupFacts, fetchSourcesSummary, fetchWorkspaces, fetchPreferences, putPreference, fetchFactsGroup, fetchOutputEvidenceMap, type FactsGroupedResponse, type OutputEvidenceMapFact } from "@/lib/api";
+import { fetchProject, fetchProjectFacts, fetchProjectJobs, ingestUrl, resetProject, synthesizeFacts, Fact, Job, uploadFile, batchUpdateFacts, Output, fetchProjectOutputs, fetchOutput, patchOutput, OutputSummary, updateProjectName, seedDemoProject, seedDemoSources, retrySource, updateFact, dedupFacts, fetchSourcesSummary, fetchWorkspaces, fetchPreferences, putPreference, fetchFactsGroup, fetchOutputEvidenceMap, type FactsGroupedResponse, type OutputEvidenceMapFact, type SynthesizeFactInput } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Layout, Search, Sparkles, X, Home, ChevronRight, Download, UploadCloud, Check, Star, FileText, Video, AlignLeft, Moon, Sun, Clock, CheckCircle2, AlertTriangle, History, List, Activity, Menu, SlidersHorizontal, Share2 } from "lucide-react";
@@ -179,7 +179,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     const [synthesisMode, setSynthesisMode] = useState<"paragraph" | "research_brief" | "script_outline" | "split">("paragraph");
     const [showSelectionDrawer, setShowSelectionDrawer] = useState(false);
     const [lastSynthesisError, setLastSynthesisError] = useState<string | null>(null);
-    const [lastSynthesisPayload, setLastSynthesisPayload] = useState<{ richFacts: Fact[]; mode: "paragraph" | "research_brief" | "script_outline" | "split" } | null>(null);
+    const [lastSynthesisPayload, setLastSynthesisPayload] = useState<{ richFacts: SynthesizeFactInput[]; mode: "paragraph" | "research_brief" | "script_outline" | "split" } | null>(null);
     const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
     const [showCompareDrawer, setShowCompareDrawer] = useState(false);
     const [outputOpenedFromHistory, setOutputOpenedFromHistory] = useState(false);
@@ -192,7 +192,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     const [similarDrawerGroupId, setSimilarDrawerGroupId] = useState<string | null>(null);
     const [similarDrawerRepFact, setSimilarDrawerRepFact] = useState<Fact | null>(null);
     const groupFactsCacheRef = useRef<Map<string, Fact[]>>(new Map());
-    const pendingSynthesisRef = useRef<{ richFacts: Fact[]; mode: "paragraph" | "research_brief" | "script_outline" | "split" } | null>(null);
+    const pendingSynthesisRef = useRef<{ richFacts: SynthesizeFactInput[]; mode: "paragraph" | "research_brief" | "script_outline" | "split" } | null>(null);
     const [showClusterPreview, setShowClusterPreview] = useState(false);
     const [clusterPreviewGroups, setClusterPreviewGroups] = useState<Array<{ groupId: string; repFact: Fact; collapsedCount: number; includeAll: boolean }>>([]);
     const [showSourceHealth, setShowSourceHealth] = useState(false);
@@ -292,10 +292,10 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         if (!isDiagnosticsMode) return;
         
         const interval = setInterval(() => {
-            const isIdleResult = typeof window !== 'undefined' && window.__e2e?.isIdle?.();
+            const isIdleResult = typeof window !== "undefined" && (window.__e2e?.isIdle as (() => boolean | { idle: boolean; reasons: unknown[] }) | undefined)?.();
             // isIdleResult can be boolean (old) or object with {idle, reasons} (new)
             const idle = typeof isIdleResult === 'object' ? isIdleResult.idle : Boolean(isIdleResult);
-            const reasons = typeof isIdleResult === 'object' ? isIdleResult.reasons : [];
+            const reasons = typeof isIdleResult === "object" && Array.isArray(isIdleResult.reasons) ? (isIdleResult.reasons as string[]) : [];
             setDiagnosticsIdle(idle);
             setDiagnosticsIdleReasons(reasons);
             setDiagnosticsTime(new Date().toLocaleTimeString());
@@ -838,7 +838,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         }
     };
 
-    const executeSynthesis = async (finalRichFacts: Fact[], mode: "paragraph" | "research_brief" | "script_outline" | "split") => {
+    const executeSynthesis = async (finalRichFacts: SynthesizeFactInput[], mode: "paragraph" | "research_brief" | "script_outline" | "split") => {
         setLastSynthesisError(null);
         setLastSynthesisPayload({ richFacts: finalRichFacts, mode });
         setIsSynthesizing(true);

@@ -33,7 +33,7 @@ fi
 
 # 3. Upgrade to latest (CI already did this; SKIP_UPGRADE=1 to skip)
 if [ "${SKIP_UPGRADE:-0}" != "1" ]; then
-  run_alembic upgrade head
+  run_alembic upgrade heads
 fi
 
 # 4. Check for pending autogenerate ops (no file creation)

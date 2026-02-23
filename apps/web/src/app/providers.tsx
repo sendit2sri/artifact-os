@@ -34,16 +34,16 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
       // Live React Query counters: update whenever query/mutation caches change
       const syncCounts = () => {
-        if ((window as any).__e2e) {
-          (window as any).__e2e.rqFetchingCount = queryClient.isFetching();
-          (window as any).__e2e.rqMutatingCount = queryClient.isMutating();
+        if (window.__e2e) {
+          window.__e2e.rqFetchingCount = queryClient.isFetching();
+          window.__e2e.rqMutatingCount = queryClient.isMutating();
         }
       };
 
       // Flag for force-error on next synthesis request
       let forceNextSynthesisError = false;
       
-      (window as any).__e2e = {
+      window.__e2e = {
         // Clear all React Query cache
         clearQueryCache: () => {
           queryClient.clear();
@@ -54,15 +54,15 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         // Returns object with idle status + diagnostic reasons (for debug strip)
         isIdle: () => {
           syncCounts();
-          const fetching = (window as any).__e2e?.rqFetchingCount ?? queryClient.isFetching();
-          const mutating = (window as any).__e2e?.rqMutatingCount ?? queryClient.isMutating();
+          const fetching = window.__e2e?.rqFetchingCount ?? queryClient.isFetching();
+          const mutating = window.__e2e?.rqMutatingCount ?? queryClient.isMutating();
           
           // Check job status from exposed state
-          const jobs = (window as any).__e2e?.state?.jobs ?? [];
-          const pending = jobs.filter((j: any) => j.status === "PENDING").length;
-          const running = jobs.filter((j: any) => j.status === "RUNNING").length;
-          const failed = jobs.filter((j: any) => j.status === "FAILED").length;
-          const hasActiveJobs = jobs.some((j: any) => ["PENDING", "RUNNING"].includes(j.status));
+          const jobs = window.__e2e?.state?.jobs ?? [];
+          const pending = jobs.filter((j: { status: string }) => j.status === "PENDING").length;
+          const running = jobs.filter((j: { status: string }) => j.status === "RUNNING").length;
+          const failed = jobs.filter((j: { status: string }) => j.status === "FAILED").length;
+          const hasActiveJobs = jobs.some((j: { status: string }) => ["PENDING", "RUNNING"].includes(j.status));
           
           const idle = fetching === 0 && mutating === 0 && !hasActiveJobs;
           
@@ -73,17 +73,25 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           if (hasActiveJobs) reasons.push(`jobs=${pending}p/${running}r`);
           
           // Return diagnostic object (backward compat: truthy if idle)
-          const result: any = {
+          const result: {
+            idle: boolean;
+            fetching: number;
+            mutating: number;
+            hasActiveJobs: boolean;
+            jobs: { pending: number; running: number; failed: number };
+            reasons: string[];
+            valueOf: () => boolean;
+            toString: () => string;
+          } = {
             idle,
             fetching,
             mutating,
             hasActiveJobs,
             jobs: { pending, running, failed },
             reasons,
+            valueOf: () => idle,
+            toString: () => idle ? 'true' : `false(${reasons.join(',')})`,
           };
-          
-          result.valueOf = () => idle;
-          result.toString = () => idle ? 'true' : `false(${reasons.join(',')})`;
           
           return result;
         },
@@ -99,29 +107,29 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             const start = Date.now();
             const check = () => {
               syncCounts();
-              const fetchCount = (window as any).__e2e?.rqFetchingCount ?? queryClient.isFetching();
-              const mutCount = (window as any).__e2e?.rqMutatingCount ?? queryClient.isMutating();
+              const fetchCount = window.__e2e?.rqFetchingCount ?? queryClient.isFetching();
+              const mutCount = window.__e2e?.rqMutatingCount ?? queryClient.isMutating();
               const queryIdle = fetchCount === 0 && mutCount === 0;
-              const rawJobs = (window as any).__e2e?.state?.jobs;
+              const rawJobs = window.__e2e?.state?.jobs;
               // If requireNoActiveJobs and jobs is undefined (race on first mount), treat as not idle until exported.
               const jobsUnknown = requireNoActiveJobs && rawJobs === undefined;
               const jobs = rawJobs ?? [];
-              const hasActiveJobs = jobsUnknown || (requireNoActiveJobs && jobs.some((j: any) => ["PENDING", "RUNNING"].includes(j.status)));
-              const hasFailedJobs = Array.isArray(jobs) && jobs.some((j: any) => j.status === "FAILED");
+              const hasActiveJobs = jobsUnknown || (requireNoActiveJobs && jobs.some((j: { status: string }) => ["PENDING", "RUNNING"].includes(j.status)));
+              const hasFailedJobs = Array.isArray(jobs) && jobs.some((j: { status: string }) => j.status === "FAILED");
               if (queryIdle && !hasActiveJobs) {
                 if (hasFailedJobs) {
-                  console.warn('⚠️ App idle but has failed jobs:', jobs.filter((j: any) => j.status === "FAILED"));
+                  console.warn('⚠️ App idle but has failed jobs:', jobs.filter((j: { status: string }) => j.status === "FAILED"));
                 }
                 resolve(true);
               } else if (Date.now() - start > timeoutMs) {
                 syncCounts();
-                const pending = Array.isArray(jobs) ? jobs.filter((j: any) => j.status === "PENDING").length : 0;
-                const running = Array.isArray(jobs) ? jobs.filter((j: any) => j.status === "RUNNING").length : 0;
-                const failed = Array.isArray(jobs) ? jobs.filter((j: any) => j.status === "FAILED").length : 0;
+                const pending = Array.isArray(jobs) ? jobs.filter((j: { status: string }) => j.status === "PENDING").length : 0;
+                const running = Array.isArray(jobs) ? jobs.filter((j: { status: string }) => j.status === "RUNNING").length : 0;
+                const failed = Array.isArray(jobs) ? jobs.filter((j: { status: string }) => j.status === "FAILED").length : 0;
                 const rawJobsType = rawJobs === undefined ? "undefined" : Array.isArray(rawJobs) ? "array" : typeof rawJobs;
-                const phase = (window as any).__e2e?.state?.phase ?? "unknown";
-                const rqFetch = (window as any).__e2e?.rqFetchingCount ?? 0;
-                const rqMut = (window as any).__e2e?.rqMutatingCount ?? 0;
+                const phase = window.__e2e?.state?.phase ?? "unknown";
+                const rqFetch = window.__e2e?.rqFetchingCount ?? 0;
+                const rqMut = window.__e2e?.rqMutatingCount ?? 0;
                 
                 reject(new Error(
                   `Timeout waiting for idle (${timeoutMs}ms):\n` +
@@ -197,7 +205,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         },
       };
 
-      (window as any).__e2e.state = (window as any).__e2e.state ?? {
+      window.__e2e.state = window.__e2e.state ?? {
         phase: 'boot',
         jobs: [],
         facts: [],

@@ -65,12 +65,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10",
-    "postcss": "^8",
-    "tailwindcss": "^4",
-    "typescript": "^5",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
-    "eslint-plugin-react-hooks": "^7.0.0"
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "postcss": "^8",
+    "tailwindcss": "^4",
+    "typescript": "5.9.3"
   },
   "overrides": {
     "eslint-plugin-react": "^7.37.0",

@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { fetchProjectFacts, updateFact, Fact } from "@/lib/api";
+import { fetchProjectFacts, updateFact, Fact, type FactsFilter } from "@/lib/api";
 import { EvidenceInspector } from "@/components/EvidenceInspector";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +42,7 @@ export default function ReviewQueuePage({ params }: { params: Promise<{ id: stri
   const { data: facts, isLoading } = useQuery({
     queryKey: ["review-facts", projectId, filterStatus],
     queryFn: () => fetchProjectFacts(projectId, { 
-      filter: filterStatus as any,
+      filter: filterStatus as FactsFilter["filter"],
       sort: "confidence",
       order: "asc" // Show lowest confidence first for review
     }),
@@ -294,7 +294,7 @@ export default function ReviewQueuePage({ params }: { params: Promise<{ id: stri
 
           <div>
             <h3 className="text-sm font-semibold mb-2">Confidence</h3>
-            <Select value={confidenceFilter} onValueChange={(v: any) => setConfidenceFilter(v)}>
+            <Select value={confidenceFilter} onValueChange={(v) => setConfidenceFilter(v as "all" | "low" | "medium" | "high")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

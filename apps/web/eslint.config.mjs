@@ -2,8 +2,8 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
-// Demote all rules that eslint-config-next/typescript sets to "error" to "warn"
-// so CI passes (exit 0) with warnings; fix warnings over time.
+// Web-deps / CI: demote rules that typescript-eslint recommends as "error" to "warn"
+// so `npm run lint` exits 0 (no ESLint errors). Fix warnings in follow-up PRs.
 const ruleOverrides = {
   "@typescript-eslint/no-explicit-any": "warn",
   "@typescript-eslint/no-unused-vars": "warn",

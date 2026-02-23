@@ -46,10 +46,10 @@ export async function preflightCheckSeedData(
     factsSearch: await page.locator('[data-testid="facts-search-input"]').count(),
     anyParagraphs: await page.locator('main p').count(),
   };
-  // eslint-disable-next-line no-console
+   
   console.log('[preflight] immediate dom counts', immediateCounts);
   const hasClimateText = await page.locator('text=/Climate research/i').first().isVisible().catch(() => false);
-  // eslint-disable-next-line no-console
+   
   console.log('[preflight] can see sample fact text=', hasClimateText);
 
   // Debug overlays (helps when something blocks pointer events)
@@ -58,7 +58,7 @@ export async function preflightCheckSeedData(
     roleDialog: await page.locator('[role="dialog"]').count(),
     radixPoppers: await page.locator('[data-radix-popper-content-wrapper]').count(),
   };
-  // eslint-disable-next-line no-console
+   
   console.log('[preflight] visible overlays', overlayCounts);
 
   // 1. Verify facts loaded (check debug strip if available — fully non-waiting)
@@ -79,26 +79,26 @@ export async function preflightCheckSeedData(
   // Use waitForFunction instead of expect()+Promise.race — reliable timeout, no hang on frame transitions
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      // eslint-disable-next-line no-console
+       
       console.log('[browser console error]', msg.text());
     }
   });
   page.on('pageerror', (err) => {
-    // eslint-disable-next-line no-console
+     
     console.log('[pageerror]', err.message);
   });
   page.on('framenavigated', (frame) => {
     if (frame === page.mainFrame()) {
-      // eslint-disable-next-line no-console
+       
       console.log('[nav]', frame.url());
     }
   });
 
-  // eslint-disable-next-line no-console
+   
   console.log('[preflight] url=', page.url());
 
   // 2. Verify facts/empty in DOM — use count (no visibility wait) when we already have cards
-  // eslint-disable-next-line no-console
+   
   console.log('[preflight] step=factCardOrEmpty start');
   if (immediateCounts.factCard > 0 || immediateCounts.empty > 0) {
     // Already have cards or empty state — skip wait, avoid overlay/visibility weirdness
@@ -133,7 +133,7 @@ export async function preflightCheckSeedData(
     }
 
     const cardCount = await page.evaluate(() => document.querySelectorAll('[data-testid="fact-card"]').length);
-    // eslint-disable-next-line no-console
+     
     console.log('[preflight] dom fact-card count=', cardCount);
 
     // Probe: what wrapper/testid do the visible row paragraphs have?
@@ -148,7 +148,7 @@ export async function preflightCheckSeedData(
       }));
       return { candidates };
     });
-    // eslint-disable-next-line no-console
+     
     console.log('[preflight] sample rows=', JSON.stringify(sample, null, 2));
 
     // Possible testid contract mismatch: facts rendered but fact-card missing
@@ -163,7 +163,7 @@ export async function preflightCheckSeedData(
     throw e;
     }
   }
-  // eslint-disable-next-line no-console
+   
   console.log('[preflight] step=factCardOrEmpty done');
 
   const hasCards = immediateCounts.factCard;
@@ -187,7 +187,7 @@ export async function preflightCheckSeedData(
 
   // 3. Verify search term returns results (core contract for many tests)
   if (!skipSearchCheck) {
-    // eslint-disable-next-line no-console
+     
     console.log('[preflight] step=search start');
     const searchInput = page.getByTestId('facts-search-input');
     await expect(searchInput).toBeVisible({ timeout: 5000 });
@@ -207,7 +207,7 @@ export async function preflightCheckSeedData(
     // Clear search for rest of test
     await searchInput.clear();
     await page.waitForTimeout(300);
-    // eslint-disable-next-line no-console
+     
     console.log('[preflight] step=search done');
   }
 }

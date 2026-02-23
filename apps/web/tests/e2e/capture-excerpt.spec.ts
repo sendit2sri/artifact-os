@@ -13,7 +13,7 @@ const SOURCE_CONTENT =
   'This warming trend is primarily driven by human activities. ' +
   'Additional filler text to ensure indices are valid and highlight spans render correctly.';
 
-async function routeSourceContent(page: { route: (url: string, handler: (route: any) => Promise<void>) => Promise<void> }) {
+async function routeSourceContent(page: { route: (url: string, handler: (route: import('@playwright/test').Route) => Promise<void>) => Promise<void> }) {
   await page.route('**/projects/*/sources/content*', async (route) => {
     const url = new URL(route.request().url());
     if (!url.pathname.includes('/sources/content')) return route.continue();

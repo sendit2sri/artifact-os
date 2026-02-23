@@ -61,8 +61,8 @@ test.describe('Seed Contract (Canary Test) @nightly', () => {
     
     // 6. Verify E2E controls are exposed
     const e2eControls = await page.evaluate(() => {
-      return typeof (window as any).__e2e === 'object' && 
-             typeof (window as any).__e2e.waitForIdle === 'function';
+return typeof window.__e2e === 'object' &&
+             typeof window.__e2e?.waitForIdle === 'function';
     });
     expect(e2eControls, 'window.__e2e controls not exposed').toBe(true);
     

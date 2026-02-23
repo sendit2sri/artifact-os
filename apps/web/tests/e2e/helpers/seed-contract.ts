@@ -54,7 +54,7 @@ export interface SeedVerificationResult {
   };
 }
 
-export function verifySeedContract(seedResponse: any): SeedVerificationResult {
+export function verifySeedContract(seedResponse: Record<string, unknown>): SeedVerificationResult {
   const verification = seedResponse.seed_verification;
   if (!verification) {
     return {
