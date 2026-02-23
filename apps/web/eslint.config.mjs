@@ -66,6 +66,11 @@ const nextBlocks = [
   ...nextTs.map((block) => ({ ...block, files: block.files ?? nextFiles })),
   // Last block wins: force our overrides so TS recommended "error" doesn't fail CI
   { files: nextFiles, rules: ruleOverrides },
+  // Tests/scripts: relax no-explicit-any (no mass refactors in test code)
+  {
+    files: ["tests/**"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
+  },
 ];
 
 const eslintConfig = defineConfig([
