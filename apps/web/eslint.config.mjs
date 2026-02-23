@@ -16,8 +16,8 @@ const ruleOverrides = {
   "react-hooks/preserve-manual-memoization": "warn",
 };
 
-// Ignore first so eslint.config.mjs and build artifacts are never passed to Next/React rules
-// (avoids "contextOrFilename.getFilename is not a function" from eslint-plugin-react under ESLint 9).
+// Ignore so these are never passed to Next/React rules (avoids
+// "contextOrFilename.getFilename is not a function" in eslint-plugin-react).
 const ignores = [
   ".next/**",
   "out/**",
@@ -30,6 +30,8 @@ const ignores = [
   "eslint.config.mjs",
   "next.config.js",
   "**/next.config.js",
+  "playwright.config.ts",
+  "**/playwright.config.ts",
   "scripts/**",
 ];
 
