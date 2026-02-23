@@ -1,6 +1,5 @@
 import os
 import httpx
-from fastapi import HTTPException
 
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
 FIRECRAWL_URL = "https://api.firecrawl.dev/v0/scrape"

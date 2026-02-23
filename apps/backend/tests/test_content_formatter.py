@@ -10,7 +10,6 @@ Tests reader-grade formatting improvements:
 - Mixed content end-to-end
 """
 
-import pytest
 from app.utils.content_formatter import format_for_reader
 
 

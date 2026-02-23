@@ -73,7 +73,7 @@ def ingest_url(payload: IngestURLRequest, db: Session = Depends(get_session)):
             db.commit()
             db.refresh(dup_job)
             return {
-                **dup_job.dict(),
+                **dup_job.model_dump(),
                 "message": "This source has already been added to this project",
                 "is_duplicate": True,
             }
@@ -88,7 +88,7 @@ def ingest_url(payload: IngestURLRequest, db: Session = Depends(get_session)):
         
         if existing_job:
             return {
-                **existing_job.dict(),
+                **existing_job.model_dump(),
                 "message": "This source has already been added to this project",
                 "is_duplicate": True
             }
@@ -124,7 +124,7 @@ def ingest_url(payload: IngestURLRequest, db: Session = Depends(get_session)):
             ).first()
             if existing_job:
                 return {
-                    **existing_job.dict(),
+                    **existing_job.model_dump(),
                     "message": "This source has already been added to this project",
                     "is_duplicate": True
                 }

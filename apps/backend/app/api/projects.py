@@ -8,7 +8,7 @@ from sqlmodel import Session, select, desc, delete
 from typing import List, Optional, Dict, Any, Tuple
 from pydantic import BaseModel
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.db.session import get_session
 from app.models import Project, Job, ResearchNode, SourceDoc, Output, ReviewStatus, JobStatus
@@ -403,7 +403,7 @@ def get_project_facts(
         source = db.get(SourceDoc, fact.source_doc_id)
         fact_url = getattr(fact, "source_url", None) or (source.url if source else "")
         facts_with_source.append({
-            **fact.dict(),
+            **fact.model_dump(),
             "source_domain": source.domain if source else "Unknown",
             "source_url": fact_url,
         })
@@ -466,7 +466,7 @@ def get_facts_group(
                 source = db.get(SourceDoc, node.source_doc_id)
                 fact_url = getattr(node, "source_url", None) or (source.url if source else "")
                 facts_out.append({
-                    **node.dict(),
+                    **node.model_dump(),
                     "source_domain": source.domain if source else "Unknown",
                     "source_url": fact_url,
                 })
@@ -754,7 +754,7 @@ def delete_job(project_id: str, job_id: str, delete_facts: bool = False, db: Ses
 @router.post("/projects/{project_id}/analyze")
 def analyze_facts(project_id: str, payload: SynthesisRequest):
     try:
-        fact_dicts = [f.dict() for f in payload.facts]
+        fact_dicts = [f.model_dump() for f in payload.facts]
         from app.services.llm import analyze_selection
         clusters = analyze_selection(fact_dicts)
         return AnalysisResponse(clusters=clusters)
@@ -829,7 +829,7 @@ def synthesize_project_facts(
     Query param force_error=true (E2E only) simulates empty synthesis for error-handling tests.
     """
     try:
-        fact_dicts = [f.dict() for f in payload.facts]
+        fact_dicts = [f.model_dump() for f in payload.facts]
         e2e = _e2e_mode_enabled()
         
         # Check for force-error via header (preferred) or query param (legacy)
@@ -881,7 +881,7 @@ def synthesize_project_facts(
         }
         raw_mode = (payload.mode or "paragraph").lower()
         mode_key = "research_brief" if raw_mode == "brief" else "script_outline" if raw_mode == "outline" else raw_mode
-        title = f"{mode_titles.get(mode_key, mode_titles.get(raw_mode, 'Output'))} - {datetime.utcnow().strftime('%b %d, %Y at %I:%M %p')}"
+        title = f"{mode_titles.get(mode_key, mode_titles.get(raw_mode, 'Output'))} - {datetime.now(timezone.utc).strftime('%b %d, %Y at %I:%M %p')}"
         output_type = "synthesis"
         if mode_key in ("outline", "script_outline"):
             output_type = "script_outline"

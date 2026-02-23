@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -12,7 +13,25 @@ import os
 import uuid
 import json
 
-app = FastAPI(title="Artifact OS API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: create tables + seed dev workspace
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as db:
+        dev_ws_id = uuid.UUID("123e4567-e89b-12d3-a456-426614174000")
+        existing = db.get(Workspace, dev_ws_id)
+        if not existing:
+            print("🌱 Seeding Dev Workspace...")
+            ws = Workspace(id=dev_ws_id, name="Dev Workspace", settings={})
+            db.add(ws)
+            db.commit()
+            print("✅ Dev Workspace Ready.")
+    yield
+    # Shutdown: nothing to do
+
+
+app = FastAPI(title="Artifact OS API", lifespan=lifespan)
 
 # --- CORS CONFIGURATION ---
 # Required when frontend runs on different port than backend (e.g., dev mode)
@@ -43,27 +62,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={"detail": exc.errors(), "body": body.decode()},
     )
-
-# --- STARTUP EVENT ---
-@app.on_event("startup")
-def on_startup():
-    # 1. Create Tables
-    SQLModel.metadata.create_all(engine)
-    
-    # 2. Seed Default Workspace
-    with Session(engine) as db:
-        dev_ws_id = uuid.UUID("123e4567-e89b-12d3-a456-426614174000") 
-        existing = db.get(Workspace, dev_ws_id)
-        if not existing:
-            print("🌱 Seeding Dev Workspace...")
-            ws = Workspace(
-                id=dev_ws_id,
-                name="Dev Workspace",
-                settings={}
-            )
-            db.add(ws)
-            db.commit()
-            print("✅ Dev Workspace Ready.")
 
 @app.get("/health")
 def health_check():
@@ -107,11 +105,15 @@ class UpdateJobRequest(BaseModel):
 def update_fact(fact_id: str, payload: UpdateFactRequest):
     with Session(engine) as db:
         fact = db.get(ResearchNode, fact_id)
-        if not fact: raise HTTPException(status_code=404, detail="Fact not found")
-        
-        if payload.fact_text is not None: fact.fact_text = payload.fact_text
-        if payload.is_key_claim is not None: fact.is_key_claim = payload.is_key_claim
-        if payload.is_pinned is not None: fact.is_pinned = payload.is_pinned
+        if not fact:
+            raise HTTPException(status_code=404, detail="Fact not found")
+
+        if payload.fact_text is not None:
+            fact.fact_text = payload.fact_text
+        if payload.is_key_claim is not None:
+            fact.is_key_claim = payload.is_key_claim
+        if payload.is_pinned is not None:
+            fact.is_pinned = payload.is_pinned
 
         # ✅ STEP #7: Respect manual review_status override
         # If user explicitly sets review_status, always honor it (even for low confidence)
@@ -130,10 +132,14 @@ def batch_update_facts(payload: BatchUpdateFactsRequest):
         results = db.exec(statement).all()
         
         for fact in results:
-            if payload.updates.fact_text is not None: fact.fact_text = payload.updates.fact_text
-            if payload.updates.is_key_claim is not None: fact.is_key_claim = payload.updates.is_key_claim
-            if payload.updates.review_status is not None: fact.review_status = payload.updates.review_status
-            if payload.updates.is_pinned is not None: fact.is_pinned = payload.updates.is_pinned
+            if payload.updates.fact_text is not None:
+                fact.fact_text = payload.updates.fact_text
+            if payload.updates.is_key_claim is not None:
+                fact.is_key_claim = payload.updates.is_key_claim
+            if payload.updates.review_status is not None:
+                fact.review_status = payload.updates.review_status
+            if payload.updates.is_pinned is not None:
+                fact.is_pinned = payload.updates.is_pinned
             db.add(fact)
             
         db.commit()
@@ -143,7 +149,8 @@ def batch_update_facts(payload: BatchUpdateFactsRequest):
 def delete_fact(fact_id: str):
     with Session(engine) as db:
         fact = db.get(ResearchNode, fact_id)
-        if not fact: raise HTTPException(status_code=404, detail="Fact not found")
+        if not fact:
+            raise HTTPException(status_code=404, detail="Fact not found")
         db.delete(fact)
         db.commit()
         return {"ok": True}
@@ -152,7 +159,8 @@ def delete_fact(fact_id: str):
 def update_job(job_id: str, payload: UpdateJobRequest):
     with Session(engine) as db:
         job = db.get(Job, job_id)
-        if not job: raise HTTPException(status_code=404, detail="Job not found")
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
         
         from sqlalchemy.orm.attributes import flag_modified
         if payload.summary is not None:

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select, delete
 from uuid import UUID, uuid4
 from pydantic import BaseModel
-from typing import Optional, List, Union, Dict, Any, Tuple
+from typing import Optional, List, Union, Dict, Tuple
 import os
 import re
 
@@ -827,17 +827,17 @@ def cleanup_test_data(db: Session = Depends(get_session)):
         )
     
     # Delete in dependency order
-    stmt = select(ResearchNode).where(ResearchNode.project_id == TEST_PROJECT_ID)
+    stmt = select(ResearchNode).where(ResearchNode.project_id == DEFAULT_PROJECT_ID)
     facts = db.exec(stmt).all()
     for fact in facts:
         db.delete(fact)
     
-    stmt = select(SourceDoc).where(SourceDoc.project_id == TEST_PROJECT_ID)
+    stmt = select(SourceDoc).where(SourceDoc.project_id == DEFAULT_PROJECT_ID)
     sources = db.exec(stmt).all()
     for source in sources:
         db.delete(source)
     
-    project = db.get(Project, TEST_PROJECT_ID)
+    project = db.get(Project, DEFAULT_PROJECT_ID)
     if project:
         db.delete(project)
     
