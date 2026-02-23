@@ -621,7 +621,7 @@ export interface SynthesizeOptions {
 
 export async function synthesizeFacts(
   projectId: string,
-  facts: any[],
+  facts: Fact[],
   mode: "paragraph" | "research_brief" | "script_outline" | "split" = "paragraph",
   options?: SynthesizeOptions
 ): Promise<SynthesisResponse> {
@@ -643,7 +643,7 @@ export async function synthesizeFacts(
   
   // Check E2E flag for force-error (cleaner than query param or page.route)
   const isE2EMode = process.env.NEXT_PUBLIC_E2E_MODE === "true";
-  if (isE2EMode && typeof window !== 'undefined' && (window as any).__e2e?._shouldForceNextSynthesisError?.()) {
+  if (isE2EMode && typeof window !== 'undefined' && window.__e2e?._shouldForceNextSynthesisError?.()) {
     headers['x-e2e-force-error'] = 'true';
     console.log('🧪 E2E: Forcing next synthesis to error');
   }
@@ -716,14 +716,14 @@ export async function synthesizeFacts(
   const responseKeys = rawResponse ? Object.keys(rawResponse).join(', ') : 'null';
   console.error('SYNTHESIS_PARSE_FAILURE:', {
     keys: responseKeys,
-    validationErrors: validationResult.error?.errors,
+    validationErrors: validationResult.error?.issues,
     rawResponse,
   });
   
   throw new Error(
     `Invalid synthesis response - no synthesis text found. ` +
     `Response keys: ${responseKeys}. ` +
-    `Validation errors: ${validationResult.error?.errors.map(e => e.message).join(', ')}`
+    `Validation errors: ${validationResult.error?.issues.map(e => e.message).join(', ')}`
   );
 }
 
@@ -731,7 +731,7 @@ export async function synthesizeFacts(
  * ✅ STEP #13: Normalize synthesis response from multiple possible shapes
  * Handles backward compatibility and defensive parsing
  */
-function normalizeSynthesisResponse(rawResponse: any): SynthesisResponse | null {
+function normalizeSynthesisResponse(rawResponse: Record<string, unknown>): SynthesisResponse | null {
   let synthesisText: string | null = null;
   let outputId: string | undefined;
   
@@ -850,7 +850,7 @@ export async function deleteOutput(outputId: string) {
 
 export async function analyzeFacts(
   projectId: string,
-  facts: any[],
+  facts: Fact[],
   signal?: AbortSignal
 ) {
   const normalized: LlmFactInput[] = facts.map((f) => ({
