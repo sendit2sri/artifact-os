@@ -10,7 +10,7 @@ import pytest
 from sqlmodel import Session, select
 
 from app.db.session import engine
-from app.models import Job, JobStatus, Project, ResearchNode, Workspace
+from app.models import Job, JobStatus, Project, ResearchNode, SourceDoc, Workspace
 from app.services.llm import ExtractionResult, ExtractedFact
 from app.workers.ingest_task import ingest_url_task
 
