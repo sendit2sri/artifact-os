@@ -52,8 +52,15 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
+      - name: Alembic diagnostics
+        run: |
+          echo "=== alembic heads (verbose) ==="
+          alembic heads --verbose
+          echo "=== alembic history (short) ==="
+          alembic history
+
       - name: Migrate DB
-        run: alembic upgrade heads
+        run: alembic upgrade head
 
       - name: Check migrations in sync
         run: SKIP_UPGRADE=1 bash ../../scripts/check-migrations-clean.sh
