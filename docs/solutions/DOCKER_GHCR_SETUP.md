@@ -25,7 +25,7 @@ Pro SaaS builder upgrade: deterministic images, fast CI, GHCR push on main, migr
 ```bash
 # Replace <org>/<repo> in docker-compose.prod.yml with your GitHub org/repo
 docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml run --rm backend alembic upgrade head
+docker compose -f docker-compose.prod.yml run --rm backend alembic upgrade heads
 docker compose -f docker-compose.prod.yml up -d --remove-orphans
 docker image prune -f
 ```

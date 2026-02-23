@@ -15,14 +15,14 @@ export {
  */
 export async function dumpE2EState(page: Page): Promise<string> {
   return page.evaluate(() => {
-    const e2e = (window as any).__e2e;
+    const e2e = window.__e2e;
     if (!e2e) return '__e2e not exposed';
     const state = e2e.state ?? {};
     const jobs = state.jobs ?? [];
     const facts = state.facts ?? [];
-    const pending = jobs.filter((j: any) => j.status === 'PENDING').length;
-    const running = jobs.filter((j: any) => j.status === 'RUNNING').length;
-    const failed = jobs.filter((j: any) => j.status === 'FAILED').length;
+    const pending = jobs.filter((j: { status: string }) => j.status === 'PENDING').length;
+    const running = jobs.filter((j: { status: string }) => j.status === 'RUNNING').length;
+    const failed = jobs.filter((j: { status: string }) => j.status === 'FAILED').length;
     return JSON.stringify({
       url: window.location.href,
       urlParams: window.location.search || undefined,
@@ -50,12 +50,12 @@ export async function expectFactsVisible(page: Page, timeout = 10000): Promise<v
     await factCards.first().waitFor({ state: 'visible', timeout });
   } catch (err) {
     const diag = await dumpE2EState(page).catch(() => 'dump failed');
-    const phase = await page.evaluate(() => (window as any).__e2e?.state?.phase ?? 'unknown').catch(() => 'unknown');
+    const phase = await page.evaluate(() => window.__e2e?.state?.phase ?? 'unknown').catch(() => 'unknown');
     const jobs = await page.evaluate(() => {
-      const j = (window as any).__e2e?.state?.jobs ?? [];
-      return { pending: j.filter((x: any) => x.status === 'PENDING').length, running: j.filter((x: any) => x.status === 'RUNNING').length };
+      const j = window.__e2e?.state?.jobs ?? [];
+      return { pending: j.filter((x: { status: string }) => x.status === 'PENDING').length, running: j.filter((x: { status: string }) => x.status === 'RUNNING').length };
     }).catch(() => ({ pending: -1, running: -1 }));
-    const factsCount = await page.evaluate(() => ((window as any).__e2e?.state?.facts ?? []).length).catch(() => -1);
+    const factsCount = await page.evaluate(() => (window.__e2e?.state?.facts ?? []).length).catch(() => -1);
     const hasErrorBoundary = await page.getByTestId('error-boundary').isVisible().catch(() => false);
     const hasErrorPage = await page.locator('text=/Something went wrong|something went wrong/i').isVisible().catch(() => false);
     const hasSkeleton = await page.locator('.animate-shimmer').first().isVisible().catch(() => false);
@@ -129,7 +129,7 @@ async function dismissOverlays(page: Page): Promise<void> {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const els = document.querySelectorAll('[data-radix-popper-content-wrapper]');
-      const visibleRects: any[] = [];
+      const visibleRects: DOMRect[] = [];
       for (const el of els) {
         const r = el.getBoundingClientRect();
         if (r.width <= 0 || r.height <= 0) continue;
@@ -147,7 +147,7 @@ async function dismissOverlays(page: Page): Promise<void> {
         [Math.round(vw / 2), Math.round(vh - margin)],
         [Math.round(vw / 2), Math.round(vh / 2)],
       ];
-      const inRect = (x: number, y: number, r: any) =>
+      const inRect = (x: number, y: number, r: DOMRect) =>
         x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
       for (const [x, y] of candidates) {
         if (!visibleRects.some((r) => inRect(x, y, r))) {
@@ -200,8 +200,8 @@ export async function clearBrowserStorage(page: Page): Promise<void> {
  */
 export async function clearReactQueryCache(page: Page): Promise<void> {
   await page.evaluate(() => {
-    if ((window as any).__e2e?.clearQueryCache) {
-      (window as any).__e2e.clearQueryCache();
+    if (window.__e2e?.clearQueryCache) {
+      window.__e2e.clearQueryCache();
     }
   });
 }

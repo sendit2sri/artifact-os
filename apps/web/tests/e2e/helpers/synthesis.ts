@@ -169,7 +169,7 @@ export async function clickGenerate(page: Page, options?: { timeout?: number }):
 async function getE2EDebug(page: Page) {
   return page
     .evaluate(() => {
-      const e2e = (window as any).__e2e;
+      const e2e = window.__e2e;
       return {
         hasE2E: !!e2e,
         idle: e2e?.isIdle?.()?.idle ?? null,
@@ -202,7 +202,7 @@ export async function clickGenerateAndWaitForPost(
   ).toBeEnabled({ timeout: 5000 });
 
   const selected = await page
-    .evaluate(() => (window as any).__e2e?.state?.selectedCount ?? null)
+    .evaluate(() => window.__e2e?.state?.selectedCount ?? null)
     .catch(() => null);
   if (selected !== null && selected <= 0) {
     throw new Error(
@@ -384,7 +384,7 @@ export async function waitForSynthesisResult(
   while (Date.now() - start < timeoutMs) {
     const outputsPromise = waitForOutputsList200(page, projectId, 10_000).catch(() => null);
     await page.evaluate(
-      (pid: string) => (window as any).__e2e?.refetchOutputs?.(pid),
+      (pid: string) => window.__e2e?.refetchOutputs?.(pid),
       projectId
     );
     await outputsPromise;
@@ -404,7 +404,7 @@ export async function waitForSynthesisResult(
 
   const diag = await page
     .evaluate(() => {
-      const e2e = (window as any).__e2e;
+      const e2e = window.__e2e;
       const keys = e2e?.getQueryCacheKeys?.() ?? [];
       const outputsKeys = keys.filter(
         (k: unknown) => Array.isArray(k) && k[0] === 'project-outputs'

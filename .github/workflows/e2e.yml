@@ -73,7 +73,7 @@ jobs:
         working-directory: apps/backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/artifact_dev
-        run: alembic upgrade head
+        run: alembic upgrade heads
 
       - name: Start backend server
         working-directory: apps/backend

@@ -2,7 +2,6 @@
 Reddit thread extraction: OP + top comments (id, author, score, body, permalink).
 Uses Reddit's public .json endpoint (no API key).
 """
-import re
 from typing import Dict, Any, List
 
 import requests

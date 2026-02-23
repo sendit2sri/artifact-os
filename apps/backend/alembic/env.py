@@ -10,7 +10,7 @@ from alembic import context
 config = context.config
 
 # Override sqlalchemy.url from env var if provided
-import os
+import os  # noqa: E402
 db_url = os.getenv("DATABASE_URL")
 if db_url:
     # Convert async driver to sync for Alembic
@@ -25,7 +25,7 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 # Import all models so they're registered with SQLModel
-from app.models import SQLModel
+from app.models import SQLModel  # noqa: E402
 target_metadata = SQLModel.metadata
 
 # other values from the config, defined by the needs of env.py,
