@@ -1,5 +1,8 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
+import type { FactView } from "@/types/factView";
+export type { FactView };
+
 export interface Project {
   id: string;
   title: string;
@@ -21,6 +24,11 @@ export interface Fact {
   review_status: "PENDING" | "APPROVED" | "FLAGGED" | "REJECTED" | "NEEDS_REVIEW";
   is_pinned?: boolean;
   quote_text_raw?: string;
+  /** Optional aliases when mapping to LlmFactInput (e.g. from UI or normalized payloads) */
+  text?: string;
+  title?: string;
+  url?: string;
+  section?: string | null;
   // Evidence offset anchors for precise highlighting
   evidence_start_char_raw?: number;
   evidence_end_char_raw?: number;
@@ -34,6 +42,22 @@ export interface Fact {
   group_id?: string;
   /** When group_similar=1: count of facts in group (only on rep) */
   collapsed_count?: number;
+}
+
+/** Map backend Fact (or fact-like) to UI FactView at API boundary */
+export function toFactView(f: Fact | Record<string, unknown>): FactView {
+  const r = f as Record<string, unknown>;
+  const text = (r.text ?? r.fact_text ?? "") as string;
+  const url = (r.url ?? r.source_url) as string | undefined;
+  return {
+    id: (r.id as string) ?? "",
+    text: typeof text === "string" ? text : "",
+    title: r.title as string | undefined,
+    url: typeof url === "string" ? url : undefined,
+    section: (r.section ?? r.section_context) as string | null | undefined,
+    review_status: r.review_status as FactView["review_status"],
+    is_pinned: r.is_pinned as boolean | undefined,
+  };
 }
 
 export interface Job {
@@ -358,7 +382,11 @@ export async function fetchProjectFacts(
   const url = `${API_URL}/projects/${projectId}/facts${params.toString() ? `?${params.toString()}` : ""}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch facts");
-  return res.json() as Promise<Fact[] | FactsGroupedResponse>;
+  const data = (await res.json()) as unknown;
+  if (!data || typeof data !== "object") return [] as Fact[];
+  if (Array.isArray(data)) return data as Fact[];
+  const grouped = data as FactsGroupedResponse;
+  return grouped;
 }
 
 export async function fetchFactsGroup(
@@ -374,7 +402,8 @@ export async function fetchFactsGroup(
     const err = await res.text();
     throw new Error(err || "Failed to fetch group facts");
   }
-  return res.json() as Promise<Fact[]>;
+  const data = (await res.json()) as unknown;
+  return Array.isArray(data) ? (data as Fact[]) : [];
 }
 
 export async function fetchProjectJobs(projectId: string) {
@@ -592,11 +621,11 @@ export async function updateJobSummary(jobId: string, summary: string) {
 const SynthesisResponseSchema = z.object({
   synthesis: z.string().min(1),
   output_id: z.string().uuid(),
-  clusters: z.array(z.any()).optional(),
+  clusters: z.array(z.unknown()).optional(),
 });
 
 const SynthesisErrorSchema = z.object({
-  detail: z.union([z.string(), z.any()]),
+  detail: z.union([z.string(), z.unknown()]),
   code: z.string().optional(),
 });
 
@@ -614,6 +643,21 @@ interface LlmFactInput {
   is_pinned?: boolean;
 }
 
+/** Input for synthesize/analyze: Fact or minimal shape with text/title/url/section (or fact_text/source_domain/etc.) */
+export type SynthesizeFactInput = {
+  id: string;
+  text?: string;
+  fact_text?: string;
+  title?: string;
+  source_domain?: string;
+  url?: string;
+  source_url?: string;
+  section?: string | null;
+  section_context?: string | null;
+  review_status?: Fact["review_status"];
+  is_pinned?: boolean;
+};
+
 export interface SynthesizeOptions {
   /** When true, backend returns 502 EMPTY_SYNTHESIS (E2E error test only) */
   forceError?: boolean;
@@ -621,11 +665,11 @@ export interface SynthesizeOptions {
 
 export async function synthesizeFacts(
   projectId: string,
-  facts: any[],
+  facts: SynthesizeFactInput[],
   mode: "paragraph" | "research_brief" | "script_outline" | "split" = "paragraph",
   options?: SynthesizeOptions
 ): Promise<SynthesisResponse> {
-  // Map frontend 'Fact' -> Backend 'FactInput'
+  // Map frontend Fact / minimal shape -> Backend LlmFactInput
   const normalized: LlmFactInput[] = facts.map((f) => ({
     id: f.id,
     text: f.text ?? f.fact_text ?? "",
@@ -643,7 +687,7 @@ export async function synthesizeFacts(
   
   // Check E2E flag for force-error (cleaner than query param or page.route)
   const isE2EMode = process.env.NEXT_PUBLIC_E2E_MODE === "true";
-  if (isE2EMode && typeof window !== 'undefined' && (window as any).__e2e?._shouldForceNextSynthesisError?.()) {
+  if (isE2EMode && typeof window !== "undefined" && (window.__e2e as { _shouldForceNextSynthesisError?: () => boolean } | undefined)?._shouldForceNextSynthesisError?.()) {
     headers['x-e2e-force-error'] = 'true';
     console.log('🧪 E2E: Forcing next synthesis to error');
   }
@@ -674,17 +718,17 @@ export async function synthesizeFacts(
     throw new Error(err.detail ? JSON.stringify(err.detail) : "Synthesis failed");
   }
 
-  const rawResponse = await res.json();
-  
+  const rawResponse = (await res.json()) as Record<string, unknown>;
+
   // Log response structure in dev mode
-  if (process.env.NODE_ENV === 'development') {
-    console.log('SYNTHESIS_RAW_RESPONSE:', {
+  if (process.env.NODE_ENV === "development") {
+    console.log("SYNTHESIS_RAW_RESPONSE:", {
       keys: Object.keys(rawResponse),
       synthesis_type: typeof rawResponse.synthesis,
       output_id: rawResponse.output_id,
     });
   }
-  
+
   // Validate canonical schema
   const validationResult = SynthesisResponseSchema.safeParse(rawResponse);
 
@@ -716,80 +760,77 @@ export async function synthesizeFacts(
   const responseKeys = rawResponse ? Object.keys(rawResponse).join(', ') : 'null';
   console.error('SYNTHESIS_PARSE_FAILURE:', {
     keys: responseKeys,
-    validationErrors: validationResult.error?.errors,
+    validationErrors: validationResult.error?.issues,
     rawResponse,
   });
   
   throw new Error(
     `Invalid synthesis response - no synthesis text found. ` +
     `Response keys: ${responseKeys}. ` +
-    `Validation errors: ${validationResult.error?.errors.map(e => e.message).join(', ')}`
+    `Validation errors: ${validationResult.error?.issues.map(e => e.message).join(', ')}`
   );
+}
+
+function getOutputId(r: Record<string, unknown>): string | undefined {
+  const a = r.output_id ?? r.outputId;
+  return typeof a === "string" ? a : undefined;
 }
 
 /**
  * ✅ STEP #13: Normalize synthesis response from multiple possible shapes
  * Handles backward compatibility and defensive parsing
  */
-function normalizeSynthesisResponse(rawResponse: any): SynthesisResponse | null {
+function normalizeSynthesisResponse(rawResponse: Record<string, unknown>): SynthesisResponse | null {
   let synthesisText: string | null = null;
   let outputId: string | undefined;
-  
+
   // Shape A: { synthesis: string | string[], output_id: string } - CANONICAL
-  if ('synthesis' in rawResponse) {
-    if (typeof rawResponse.synthesis === 'string') {
-      synthesisText = rawResponse.synthesis;
-    } else if (Array.isArray(rawResponse.synthesis)) {
-      synthesisText = rawResponse.synthesis.join('\n\n');
-    }
-    outputId = rawResponse.output_id || rawResponse.outputId;
+  if ("synthesis" in rawResponse) {
+    const s = rawResponse.synthesis;
+    if (typeof s === "string") synthesisText = s;
+    else if (Array.isArray(s)) synthesisText = s.join("\n\n");
+    outputId = getOutputId(rawResponse);
   }
   // Shape B: { synthesis: { synthesis: string }, output_id: string } - NESTED
-  else if ('synthesis' in rawResponse && typeof rawResponse.synthesis === 'object' && rawResponse.synthesis.synthesis) {
-    synthesisText = rawResponse.synthesis.synthesis;
-    outputId = rawResponse.output_id || rawResponse.outputId;
+  else if ("synthesis" in rawResponse && typeof rawResponse.synthesis === "object" && rawResponse.synthesis !== null) {
+    const nested = (rawResponse.synthesis as Record<string, unknown>).synthesis;
+    if (typeof nested === "string") synthesisText = nested;
+    outputId = getOutputId(rawResponse);
   }
   // Shape C: { summary: string, output_id: string } - LEGACY
-  else if ('summary' in rawResponse && typeof rawResponse.summary === 'string') {
+  else if ("summary" in rawResponse && typeof rawResponse.summary === "string") {
     synthesisText = rawResponse.summary;
-    outputId = rawResponse.output_id || rawResponse.outputId;
+    outputId = getOutputId(rawResponse);
   }
   // Shape D: { result: { synthesis: string | string[] } } - WRAPPED
-  else if ('result' in rawResponse && rawResponse.result) {
-    const innerResult = rawResponse.result;
-    if (typeof innerResult.synthesis === 'string') {
-      synthesisText = innerResult.synthesis;
-    } else if (Array.isArray(innerResult.synthesis)) {
-      synthesisText = innerResult.synthesis.join('\n\n');
-    }
-    outputId = rawResponse.output_id || rawResponse.outputId;
+  else if ("result" in rawResponse && rawResponse.result && typeof rawResponse.result === "object") {
+    const innerResult = rawResponse.result as Record<string, unknown>;
+    const s = innerResult.synthesis;
+    if (typeof s === "string") synthesisText = s;
+    else if (Array.isArray(s)) synthesisText = s.join("\n\n");
+    outputId = getOutputId(rawResponse);
   }
   // Shape E: { text: string, output_id: string } - ALTERNATIVE
-  else if ('text' in rawResponse && typeof rawResponse.text === 'string') {
+  else if ("text" in rawResponse && typeof rawResponse.text === "string") {
     synthesisText = rawResponse.text;
-    outputId = rawResponse.output_id || rawResponse.outputId;
+    outputId = getOutputId(rawResponse);
   }
-  
+
+  const clusters = Array.isArray(rawResponse.clusters) ? rawResponse.clusters : undefined;
+
   // If we have output_id but no synthesis, try fetching from /outputs/{id}
-  if (!synthesisText && (rawResponse.output_id || rawResponse.outputId)) {
-    console.warn('⚠️ Synthesis text missing but output_id present. Will be handled by caller.');
-    // Return partial result - caller can fetch from /outputs endpoint
+  if (!synthesisText && getOutputId(rawResponse)) {
+    console.warn("⚠️ Synthesis text missing but output_id present. Will be handled by caller.");
     return {
-      synthesis: '', // Empty but valid
-      output_id: rawResponse.output_id || rawResponse.outputId,
-      clusters: rawResponse.clusters
+      synthesis: "",
+      output_id: getOutputId(rawResponse)!,
+      clusters,
     };
   }
-  
-  // Final validation
+
   if (synthesisText && outputId) {
-    return {
-      synthesis: synthesisText,
-      output_id: outputId,
-      clusters: rawResponse.clusters,
-    };
+    return { synthesis: synthesisText, output_id: outputId, clusters };
   }
-  
   return null;
 }
 
@@ -850,7 +891,7 @@ export async function deleteOutput(outputId: string) {
 
 export async function analyzeFacts(
   projectId: string,
-  facts: any[],
+  facts: SynthesizeFactInput[],
   signal?: AbortSignal
 ) {
   const normalized: LlmFactInput[] = facts.map((f) => ({
@@ -874,7 +915,11 @@ export async function analyzeFacts(
   }
   
   if (!res.ok) throw new Error("Analysis failed");
-  return res.json() as Promise<{ clusters: { label: string; fact_ids: string[] }[] }>;
+  const data = (await res.json()) as unknown;
+  if (data && typeof data === "object" && "clusters" in data && Array.isArray((data as { clusters: unknown }).clusters)) {
+    return data as { clusters: { label: string; fact_ids: string[] }[] };
+  }
+  return { clusters: [] };
 }
 
 // --- EXPORT ---

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship, JSON, UniqueConstraint
@@ -37,6 +37,7 @@ class SourceType(str, Enum):
     WEB = "WEB"
     REDDIT = "REDDIT"
     YOUTUBE = "YOUTUBE"
+    MEDIA = "MEDIA"  # uploaded audio/video
 
 # --- Tables ---
 
@@ -45,7 +46,7 @@ class Workspace(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str
     settings: Dict[str, Any] = Field(default_factory=dict, sa_type=JSON)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     projects: List["Project"] = Relationship(back_populates="workspace")
 
 class Project(SQLModel, table=True):
@@ -54,7 +55,7 @@ class Project(SQLModel, table=True):
     workspace_id: uuid.UUID = Field(foreign_key="workspaces.id", index=True)
     title: str
     storage_path_root: str 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     workspace: Workspace = Relationship(back_populates="projects")
     nodes: List["ResearchNode"] = Relationship(back_populates="project")
@@ -89,7 +90,7 @@ class SourceDoc(SQLModel, table=True):
     content_s3_path: Optional[str] = Field(default=None)
     content_hash: Optional[str] = Field(default=None, index=True)
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ResearchNode(SQLModel, table=True):
     __tablename__ = "research_nodes"
@@ -133,7 +134,7 @@ class ResearchNode(SQLModel, table=True):
     is_suppressed: bool = Field(default=False)
     canonical_fact_id: Optional[uuid.UUID] = Field(default=None)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     project: Project = Relationship(back_populates="nodes")
 
@@ -143,7 +144,7 @@ class CanvasState(SQLModel, table=True):
     project_id: uuid.UUID = Field(foreign_key="projects.id", unique=True)
     version: int = Field(default=1)
     layout_state: Dict[str, Any] = Field(default_factory=dict, sa_type=JSON)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     project: Project = Relationship(back_populates="canvas_state")
 
 class Job(SQLModel, table=True):
@@ -167,9 +168,20 @@ class Job(SQLModel, table=True):
     
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     project: Optional[Project] = Relationship(back_populates="jobs")
+
+class IngestRule(SQLModel, table=True):
+    """Auto-ingest rules (V4): folder_watch, rss_ingest, scheduled_url. Worker picks up in V4b."""
+    __tablename__ = "ingest_rules"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="projects.id", index=True)
+    type: str = Field(index=True)  # folder_watch | rss_ingest | scheduled_url
+    config_json: Dict[str, Any] = Field(default_factory=dict, sa_type=JSON)
+    enabled: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class UserPreference(SQLModel, table=True):
     """Server-backed user preferences per workspace/project (key-value JSON)."""
@@ -179,7 +191,7 @@ class UserPreference(SQLModel, table=True):
     project_id: Optional[uuid.UUID] = Field(default=None, foreign_key="projects.id", index=True)
     key: str = Field(index=True)
     value_json: Dict[str, Any] = Field(default_factory=dict, sa_type=JSON)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Output(SQLModel, table=True):
@@ -205,5 +217,5 @@ class Output(SQLModel, table=True):
     # Quality stats: counts by review_status and pinned (computed at synthesis time)
     quality_stats: Optional[Dict[str, Any]] = Field(default=None, sa_type=JSON)
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

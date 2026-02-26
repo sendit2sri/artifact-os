@@ -2,7 +2,7 @@
 YouTube transcript extraction: title, channel, segments (start_s, end_s, text), video_url.
 Uses youtube-transcript-api when available (no API key).
 """
-from typing import Dict, Any, List
+from typing import Dict, Any
 from urllib.parse import urlparse, parse_qs
 
 

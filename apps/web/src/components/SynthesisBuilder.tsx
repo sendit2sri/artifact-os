@@ -68,8 +68,8 @@ export function SynthesisBuilder({ open, onOpenChange, selectedFacts, onRemoveFa
                 if (!controller.signal.aborted) {
                     setClusters(result.clusters);
                 }
-            } catch (e: any) {
-                if (e.name !== "AbortError") {
+            } catch (e: unknown) {
+                if (e instanceof Error && e.name !== "AbortError") {
                     console.error(e);
                     toast.error("Analysis paused. Showing list view.");
                 }

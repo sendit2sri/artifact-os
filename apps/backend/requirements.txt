@@ -21,4 +21,6 @@ beautifulsoup4
 bleach
 requests
 youtube-transcript-api
+faster-whisper
 pytest
+ruff

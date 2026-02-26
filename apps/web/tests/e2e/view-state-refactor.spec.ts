@@ -141,7 +141,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
 
     // No console errors about "Maximum update depth exceeded"
     const consoleErrors = await page.evaluate(() => {
-      return (window as any).__consoleErrors || [];
+      return window.__consoleErrors || [];
     });
     
     const hasLoopError = consoleErrors.some((msg: string) => 
@@ -347,7 +347,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
 
     // isIdle should return false while job running (returns {idle, reasons} object)
     const isIdleWhileRunning = await page.evaluate(() => {
-      const r = (window as any).__e2e?.isIdle?.();
+      const r = window.__e2e?.isIdle?.();
       return typeof r === 'object' ? r.idle : r;
     });
     expect(isIdleWhileRunning).toBe(false);
@@ -357,7 +357,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
 
     // isIdle should now return true
     const isIdleAfterComplete = await page.evaluate(() => {
-      const r = (window as any).__e2e?.isIdle?.();
+      const r = window.__e2e?.isIdle?.();
       return typeof r === 'object' ? r.idle : r;
     });
     expect(isIdleAfterComplete).toBe(true);
@@ -407,7 +407,7 @@ test.describe("View State - Edge Cases", () => {
     
     // No console errors
     const consoleErrors = await page.evaluate(() => {
-      return (window as any).__consoleErrors || [];
+      return window.__consoleErrors || [];
     });
     
     expect(consoleErrors.length).toBe(0);

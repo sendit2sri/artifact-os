@@ -2,7 +2,7 @@ import os
 import json
 import time
 import math
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Any
 from pydantic import BaseModel, Field, field_validator
 from openai import OpenAI
 
@@ -13,7 +13,7 @@ MAX_RETRIES = 3
 
 try:
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-except:
+except Exception:
     client = None
     print("⚠️ OpenAI Client failed to initialize. Check API KEY.")
 
@@ -30,7 +30,8 @@ class ExtractedFact(BaseModel):
     @field_validator('tags', mode='before')
     @classmethod
     def convert_null_to_list(cls, v):
-        if v is None: return []
+        if v is None:
+            return []
         return v
 
 class ExtractionResult(BaseModel):
@@ -49,7 +50,8 @@ class SynthesisResponse(BaseModel):
 # --- MATH HELPERS ---
 
 def get_embeddings(texts: List[str]) -> List[List[float]]:
-    if not client or not texts: return []
+    if not client or not texts:
+        return []
     try:
         clean_texts = [t.replace("\n", " ") for t in texts]
         resp = client.embeddings.create(input=clean_texts, model=EMBEDDING_MODEL)
@@ -62,11 +64,13 @@ def cosine_similarity(v1: List[float], v2: List[float]) -> float:
     dot_product = sum(a * b for a, b in zip(v1, v2))
     norm_a = math.sqrt(sum(a * a for a in v1))
     norm_b = math.sqrt(sum(b * b for b in v2))
-    if norm_a == 0 or norm_b == 0: return 0.0
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
     return dot_product / (norm_a * norm_b)
 
 def chunk_text(text: str, chunk_size: int = 12000, overlap: int = 500) -> List[str]:
-    if len(text) <= chunk_size: return [text]
+    if len(text) <= chunk_size:
+        return [text]
     chunks = []
     start = 0
     while start < len(text):
@@ -83,7 +87,8 @@ def verify_quote_integrity(content: str, quote: str) -> str:
 # --- LLM WRAPPER ---
 
 def call_llm(messages: list, response_format=None, model=MODEL_FAST) -> Any:
-    if not client: return None
+    if not client:
+        return None
     for attempt in range(MAX_RETRIES):
         try:
             return client.chat.completions.create(
@@ -101,8 +106,10 @@ def call_llm(messages: list, response_format=None, model=MODEL_FAST) -> Any:
 # --- CORE LOGIC ---
 
 def cluster_facts_adaptive(facts: list[dict]) -> list[dict]:
-    if not facts: return []
-    if not client: return [{"label": "All Facts", "fact_ids": [f['id'] for f in facts], "facts": facts}]
+    if not facts:
+        return []
+    if not client:
+        return [{"label": "All Facts", "fact_ids": [f['id'] for f in facts], "facts": facts}]
 
     text_payloads = []
     for f in facts:
@@ -202,7 +209,8 @@ def synthesize_facts(facts: list[dict], mode: str = "paragraph") -> dict:
             response_format={"type": "json_object"} 
         )
         
-        if not resp: raise Exception("LLM returned None")
+        if not resp:
+            raise Exception("LLM returned None")
         
         data = json.loads(resp.choices[0].message.content)
         

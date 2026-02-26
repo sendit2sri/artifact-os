@@ -10,7 +10,7 @@
     "dev:recovery": "npm run clean && npm run dev:webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --max-warnings 99999",
+    "lint": "eslint src tests --max-warnings 99999",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next && echo '✅ Cleared .next/ cache'",
     "test:e2e": "playwright test",
@@ -60,16 +60,21 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@tailwindcss/postcss": "^4.2.1",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10",
-    "postcss": "^8",
-    "tailwindcss": "^4",
-    "typescript": "^5",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
-    "eslint-plugin-react-hooks": "^7.0.0"
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "postcss": "^8",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "overrides": {
+    "eslint-plugin-react": "^7.37.0",
+    "minimatch": ">=10.2.1"
   }
 }

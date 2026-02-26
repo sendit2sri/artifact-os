@@ -337,7 +337,7 @@ export function SourceTracker({ projectId, activeFilter, onSelect, highlightCano
                                                                 {(() => {
                                                                     const st = job.result_summary?.source_type || job.params?.source_type;
                                                                     if (!st || st === "WEB") return null;
-                                                                    const label = st === "REDDIT" ? "Reddit" : st === "YOUTUBE" ? "YouTube" : "Web";
+                                                                    const label = st === "REDDIT" ? "Reddit" : st === "YOUTUBE" ? "YouTube" : st === "MEDIA" ? "Media" : "Web";
                                                                     return (
                                                                         <Badge
                                                                             variant="secondary"
@@ -362,7 +362,7 @@ export function SourceTracker({ projectId, activeFilter, onSelect, highlightCano
                                                     ) : status === "FAILED" ? (
                                                         <div
                                                             className="w-2 h-2 rounded-full bg-red-400 dark:bg-red-500 cursor-help"
-                                                            title={job.error_message || "Processing failed"}
+                                                            title={job.result_summary?.error_message ?? job.error_message ?? "Processing failed"}
                                                         />
                                                     ) : (
                                                         <div
@@ -387,7 +387,7 @@ export function SourceTracker({ projectId, activeFilter, onSelect, highlightCano
                                                         <Badge
                                                             variant="secondary"
                                                             className="h-4 px-1.5 bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 text-[9px]"
-                                                            title={job.error_message || "Processing failed"}
+                                                            title={job.result_summary?.error_message ?? job.error_message ?? "Processing failed"}
                                                         >
                                                             Failed
                                                         </Badge>

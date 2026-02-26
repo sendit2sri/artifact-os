@@ -70,7 +70,7 @@ test.describe("Canary - Critical Path @release-gate", () => {
     jobStatus = "PENDING";
 
     const r1 = waitJobs200();
-    await page.evaluate((pid) => (window as any).__e2e?.refetchJobs?.(pid), projectId);
+    await page.evaluate((pid) => window.__e2e?.refetchJobs?.(pid), projectId);
     await r1;
 
     const stuckCard = page.locator('[data-testid="stuck-job-watchdog-test-job"]');
@@ -81,7 +81,7 @@ test.describe("Canary - Critical Path @release-gate", () => {
     jobStatus = "COMPLETED";
 
     const r2 = waitJobs200();
-    await page.evaluate((pid) => (window as any).__e2e?.refetchJobs?.(pid), projectId);
+    await page.evaluate((pid) => window.__e2e?.refetchJobs?.(pid), projectId);
     await r2;
 
     await expect(stuckCard).not.toBeVisible({ timeout: 5000 });

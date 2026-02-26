@@ -261,7 +261,7 @@ export function EvidenceInspector({ fact, onClose, projectId, disableClose = fal
                         <div ref={contentRef} className="p-8 md:p-12 max-w-[65ch] mx-auto">
                             {activeTab === "reader" ? (
                                 <ReaderView 
-                                    data={data} 
+                                    data={data as unknown as { markdown?: string; [k: string]: unknown }} 
                                     quote={fact.quote_text_raw} 
                                     matchResult={matchResult}
                                     showCitations={showCitations}
@@ -295,7 +295,7 @@ function ReaderView({
     showCitations = false,
     isPulsing = false
 }: { 
-    data: any; 
+    data: { markdown?: string; [k: string]: unknown }; 
     quote?: string; 
     matchResult: ReturnType<typeof findQuoteInText>;
     showCitations?: boolean;
@@ -328,17 +328,19 @@ function ReaderView({
         );
     }
 
-    if (data.html) {
+    const htmlStr = typeof data.html === "string" ? data.html : "";
+    if (htmlStr) {
         return (
             <div 
                 className="reader-content prose prose-slate dark:prose-invert prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ __html: removeCitations(data.html) }}
+                dangerouslySetInnerHTML={{ __html: removeCitations(htmlStr) }}
             />
         );
     }
 
     // Plain text - parse into blocks
-    const text = removeCitations(data.text || data.content || "");
+    const textContent = (typeof data.text === "string" ? data.text : typeof data.content === "string" ? data.content : "") || "";
+    const text = removeCitations(textContent);
     const blocks = parseTextToBlocks(text);
 
     return (

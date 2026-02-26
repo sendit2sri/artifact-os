@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, use, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Panel, Group, Separator } from "react-resizable-panels";
 import { FactCard } from "@/components/FactCard";
 import { SourceTracker } from "@/components/SourceTracker";
 import { EvidencePanelSimple } from "@/components/EvidencePanelSimple";
@@ -24,7 +24,7 @@ import { ProjectOverview } from "@/components/ProjectOverview";
 import { OnboardingOverlay, getOnboardingCompleted } from "@/components/OnboardingOverlay";
 import { PhaseIndicator, PhaseStatusLine, PhaseProgressBar } from "@/components/PhaseIndicator";
 import { computeAppPhase, getPhaseCTA, canPerformAction } from "@/lib/phase";
-import { fetchProject, fetchProjectFacts, fetchProjectJobs, ingestUrl, resetProject, synthesizeFacts, Fact, uploadFile, batchUpdateFacts, Output, fetchProjectOutputs, fetchOutput, patchOutput, OutputSummary, updateProjectName, seedDemoProject, seedDemoSources, retrySource, updateFact, dedupFacts, fetchSourcesSummary, fetchWorkspaces, fetchPreferences, putPreference, fetchFactsGroup, fetchOutputEvidenceMap, type FactsGroupedResponse, type OutputEvidenceMapFact } from "@/lib/api";
+import { fetchProject, fetchProjectFacts, fetchProjectJobs, ingestUrl, resetProject, synthesizeFacts, Fact, Job, uploadFile, batchUpdateFacts, Output, fetchProjectOutputs, fetchOutput, patchOutput, OutputSummary, updateProjectName, seedDemoProject, seedDemoSources, retrySource, updateFact, dedupFacts, fetchSourcesSummary, fetchWorkspaces, fetchPreferences, putPreference, fetchFactsGroup, fetchOutputEvidenceMap, type FactsGroupedResponse, type OutputEvidenceMapFact, type SynthesizeFactInput } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Layout, Search, Sparkles, X, Home, ChevronRight, Download, UploadCloud, Check, Star, FileText, Video, AlignLeft, Moon, Sun, Clock, CheckCircle2, AlertTriangle, History, List, Activity, Menu, SlidersHorizontal, Share2 } from "lucide-react";
@@ -179,7 +179,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     const [synthesisMode, setSynthesisMode] = useState<"paragraph" | "research_brief" | "script_outline" | "split">("paragraph");
     const [showSelectionDrawer, setShowSelectionDrawer] = useState(false);
     const [lastSynthesisError, setLastSynthesisError] = useState<string | null>(null);
-    const [lastSynthesisPayload, setLastSynthesisPayload] = useState<{ richFacts: any[]; mode: "paragraph" | "research_brief" | "script_outline" | "split" } | null>(null);
+    const [lastSynthesisPayload, setLastSynthesisPayload] = useState<{ richFacts: SynthesizeFactInput[]; mode: "paragraph" | "research_brief" | "script_outline" | "split" } | null>(null);
     const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
     const [showCompareDrawer, setShowCompareDrawer] = useState(false);
     const [outputOpenedFromHistory, setOutputOpenedFromHistory] = useState(false);
@@ -192,7 +192,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     const [similarDrawerGroupId, setSimilarDrawerGroupId] = useState<string | null>(null);
     const [similarDrawerRepFact, setSimilarDrawerRepFact] = useState<Fact | null>(null);
     const groupFactsCacheRef = useRef<Map<string, Fact[]>>(new Map());
-    const pendingSynthesisRef = useRef<{ richFacts: any[]; mode: "paragraph" | "research_brief" | "script_outline" | "split" } | null>(null);
+    const pendingSynthesisRef = useRef<{ richFacts: SynthesizeFactInput[]; mode: "paragraph" | "research_brief" | "script_outline" | "split" } | null>(null);
     const [showClusterPreview, setShowClusterPreview] = useState(false);
     const [clusterPreviewGroups, setClusterPreviewGroups] = useState<Array<{ groupId: string; repFact: Fact; collapsedCount: number; includeAll: boolean }>>([]);
     const [showSourceHealth, setShowSourceHealth] = useState(false);
@@ -292,10 +292,10 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         if (!isDiagnosticsMode) return;
         
         const interval = setInterval(() => {
-            const isIdleResult = typeof window !== 'undefined' && (window as any).__e2e?.isIdle?.();
+            const isIdleResult = typeof window !== "undefined" && (window.__e2e?.isIdle as (() => boolean | { idle: boolean; reasons: unknown[] }) | undefined)?.();
             // isIdleResult can be boolean (old) or object with {idle, reasons} (new)
             const idle = typeof isIdleResult === 'object' ? isIdleResult.idle : Boolean(isIdleResult);
-            const reasons = typeof isIdleResult === 'object' ? isIdleResult.reasons : [];
+            const reasons = typeof isIdleResult === "object" && Array.isArray(isIdleResult.reasons) ? (isIdleResult.reasons as string[]) : [];
             setDiagnosticsIdle(idle);
             setDiagnosticsIdleReasons(reasons);
             setDiagnosticsTime(new Date().toLocaleTimeString());
@@ -386,7 +386,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             setTitleError(null);
             await queryClient.cancelQueries({ queryKey: ["project", projectId] });
             const prev = queryClient.getQueryData(["project", projectId]);
-            queryClient.setQueryData(["project", projectId], (old: any) => (old ? { ...old, title: newTitle } : { id: projectId, title: newTitle }));
+            queryClient.setQueryData(["project", projectId], (old: { id: string; title: string } | undefined) => (old ? { ...old, title: newTitle } : { id: projectId, title: newTitle }));
             return { prev };
         },
         onError: (_err, _newTitle, context) => {
@@ -435,7 +435,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         queryFn: () => fetchProjectJobs(projectId),
         refetchOnWindowFocus: false,
         refetchInterval: (query) => {
-            const data = query.state.data as any[];
+            const data = query.state.data as Job[] | undefined;
             const hasActive = data?.some(j => ["PENDING", "RUNNING"].includes(j.status));
             return hasActive ? 2500 : false; // Poll every 2.5s when active, stop otherwise
         },
@@ -472,7 +472,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
 
     // ✅ STEP #8: Server-side filtering and sorting
     const factsFilter = useMemo(() => {
-        const filter: any = {};
+        const filter: Record<string, string | number | boolean | undefined> = {};
         
         // Map viewMode and reviewStatusFilter to backend filter param
         if (reviewStatusFilter) {
@@ -712,7 +712,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     const ingestMutation = useMutation({
         mutationFn: () => ingestUrl(projectId, workspaceId, urlInput),
         onMutate: () => setAddUrlError(null),
-        onSuccess: (data: any) => {
+        onSuccess: (data: { job_id?: string; id?: string; is_duplicate?: boolean; result_summary?: { is_duplicate?: boolean }; params?: { canonical_url?: string } }) => {
             const jobId = data.job_id || data.id;
             const urlUsed = urlInput;
             setUrlInput("");
@@ -740,7 +740,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 }
             }
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             const errorMsg = error.message || "Failed to add source. Please check the URL and try again.";
             setAddUrlError(errorMsg);
             console.error("Ingestion error:", error);
@@ -752,7 +752,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             if (!selectedFile) throw new Error("No file selected");
             return uploadFile(projectId, workspaceId, selectedFile);
         },
-        onSuccess: (data: any) => {
+        onSuccess: (data: { job_id?: string; id?: string }) => {
             const jobId = data.job_id || data.id;
             const filename = selectedFile?.name;
             setSelectedFile(null);
@@ -770,7 +770,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 });
             }
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
             const errorMsg = error.message || "Failed to upload file. Please try again.";
             toast.error(errorMsg);
             console.error("Upload error:", error);
@@ -838,7 +838,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         }
     };
 
-    const executeSynthesis = async (finalRichFacts: any[], mode: "paragraph" | "research_brief" | "script_outline" | "split") => {
+    const executeSynthesis = async (finalRichFacts: SynthesizeFactInput[], mode: "paragraph" | "research_brief" | "script_outline" | "split") => {
         setLastSynthesisError(null);
         setLastSynthesisPayload({ richFacts: finalRichFacts, mode });
         setIsSynthesizing(true);
@@ -1389,8 +1389,8 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
 
     // Expose state for E2E (diagnostics + idle contract)
     useEffect(() => {
-        if (typeof window !== 'undefined' && (window as any).__e2e) {
-            (window as any).__e2e.state = {
+        if (typeof window !== 'undefined' && window.__e2e) {
+            window.__e2e.state = {
                 phase: "reviewing", // TODO: implement phase enum
                 jobs: jobs ?? [],
                 facts: facts ?? [],
@@ -1758,11 +1758,11 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 factsCount={(facts ?? []).length}
             />
 
-            <PanelGroup direction="horizontal" className="flex-1 min-h-0 min-w-0">
+            <Group orientation="horizontal" className="flex-1 min-h-0 min-w-0">
                 {/* Left: Sources (>= lg only) */}
                 {isLg && (
                     <>
-                        <Panel id="sidebar" order={1} defaultSize={20} minSize={15} maxSize={30} className="border-r border-border bg-surface/50 backdrop-blur-sm flex flex-col">
+                        <Panel id="sidebar" defaultSize={20} minSize={15} maxSize={30} className="border-r border-border bg-surface/50 backdrop-blur-sm flex flex-col">
                             <div className="p-4 overflow-y-auto h-full">
                                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">Active Sources</h3>
                                 <SourceTracker
@@ -1773,12 +1773,12 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                 />
                             </div>
                         </Panel>
-                        <PanelResizeHandle className="w-1 bg-border hover:bg-primary transition-colors" />
+                        <Separator className="w-1 bg-border hover:bg-primary transition-colors" />
                     </>
                 )}
 
                 {/* Main Canvas */}
-                <Panel id="canvas" order={isLg ? 2 : 1} minSize={30} defaultSize={isLg ? undefined : 100} className="bg-background relative min-w-0">
+                <Panel id="canvas" minSize={30} defaultSize={isLg ? undefined : 100} className="bg-background relative min-w-0">
                     <div className="h-full w-full min-w-0 overflow-y-auto overflow-x-hidden">
                         <div className={cn("mx-auto max-w-4xl min-w-0 flex flex-col", getDensityClasses(isLg).contentPadding, getDensityClasses(isLg).contentGap)}>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -2246,7 +2246,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                     {(phaseState.phase === "EMPTY" || phaseState.phase === "ERROR") && phaseCTA.action && (
                                                         <div className="flex justify-center pb-8">
                                                             <Button
-                                                                variant={phaseCTA.variant === "primary" ? "default" : phaseCTA.variant as any}
+                                                                variant={phaseCTA.variant === "primary" ? "default" : (phaseCTA.variant as "secondary" | "outline")}
                                                                 disabled={phaseCTA.disabled}
                                                                 onClick={() => {
                                                                     if (phaseCTA.action === "add_source") {
@@ -2369,7 +2369,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                     </div>
                 </Panel>
 
-            </PanelGroup>
+            </Group>
 
             {/* Evidence Panel (Sheet) */}
             <EvidencePanelSimple
