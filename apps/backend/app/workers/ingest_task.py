@@ -69,7 +69,7 @@ def find_quote_offsets(content: Optional[str], quote: str) -> Tuple[Optional[int
     
     # Try normalized whitespace match
     def normalize(s: str) -> str:
-        return ' '.join(s.split())
+        return " ".join(s.split())
 
     norm_content = normalize(lower_content)
     norm_quote = normalize(lower_quote)

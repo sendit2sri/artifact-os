@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -12,7 +13,25 @@ import os
 import uuid
 import json
 
-app = FastAPI(title="Artifact OS API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: create tables + seed dev workspace
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as db:
+        dev_ws_id = uuid.UUID("123e4567-e89b-12d3-a456-426614174000")
+        existing = db.get(Workspace, dev_ws_id)
+        if not existing:
+            print("🌱 Seeding Dev Workspace...")
+            ws = Workspace(id=dev_ws_id, name="Dev Workspace", settings={})
+            db.add(ws)
+            db.commit()
+            print("✅ Dev Workspace Ready.")
+    yield
+    # Shutdown: nothing to do
+
+
+app = FastAPI(title="Artifact OS API", lifespan=lifespan)
 
 # --- CORS CONFIGURATION ---
 # Required when frontend runs on different port than backend (e.g., dev mode)
@@ -43,27 +62,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={"detail": exc.errors(), "body": body.decode()},
     )
-
-# --- STARTUP EVENT ---
-@app.on_event("startup")
-def on_startup():
-    # 1. Create Tables
-    SQLModel.metadata.create_all(engine)
-    
-    # 2. Seed Default Workspace
-    with Session(engine) as db:
-        dev_ws_id = uuid.UUID("123e4567-e89b-12d3-a456-426614174000") 
-        existing = db.get(Workspace, dev_ws_id)
-        if not existing:
-            print("🌱 Seeding Dev Workspace...")
-            ws = Workspace(
-                id=dev_ws_id,
-                name="Dev Workspace",
-                settings={}
-            )
-            db.add(ws)
-            db.commit()
-            print("✅ Dev Workspace Ready.")
 
 @app.get("/health")
 def health_check():

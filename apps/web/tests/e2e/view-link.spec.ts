@@ -25,11 +25,11 @@ test.describe('View link', () => {
     mark('switchToAllDataView done');
 
     // Debug: log toggle state (persisted toggles can trigger alternate render paths)
-    // eslint-disable-next-line no-console
+     
     console.log('[debug] collapse checked =', await page.getByTestId('toggle-collapse-similar').isChecked().catch(() => null));
-    // eslint-disable-next-line no-console
+     
     console.log('[debug] selected-only checked =', await page.getByTestId('facts-selected-only-toggle').isChecked().catch(() => null));
-    // eslint-disable-next-line no-console
+     
     console.log('[debug] show-suppressed checked =', await page.getByTestId('facts-show-suppressed-toggle').isChecked().catch(() => null));
 
     mark('preflight start');

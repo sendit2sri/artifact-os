@@ -3,7 +3,7 @@
  * Handles quote matching, highlighting, and scrolling for both Reader and Raw views
  */
 
-import React from 'react';
+import React, { type JSX } from 'react';
 
 export interface MatchResult {
   found: boolean;

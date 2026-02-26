@@ -1,6 +1,6 @@
 from sqlmodel import Session
 from app.models import Job, JobStatus
-from datetime import datetime
+from datetime import datetime, timezone
 
 def update_job_progress(db: Session, job_id: str, step_description: str, step_number: int, total_steps: int = 4):
     """
@@ -13,7 +13,7 @@ def update_job_progress(db: Session, job_id: str, step_description: str, step_nu
         job.steps_total = total_steps
         if step_number == 0 and job.status == JobStatus.PENDING:
             job.status = JobStatus.RUNNING
-            job.started_at = datetime.utcnow()
+            job.started_at = datetime.now(timezone.utc)
         db.add(job)
         db.commit()
         print(f"📡 [Job {job_id}] {step_description} ({step_number}/{total_steps})")

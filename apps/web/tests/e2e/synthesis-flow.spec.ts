@@ -126,11 +126,11 @@ test.describe('Synthesis Flow - Force Error', () => {
     await gotoProject(page, seed.project_id);
 
     await page.waitForFunction(
-      () => typeof (window as any).__e2e?.setForceNextSynthesisError === 'function',
+      () => typeof window.__e2e?.setForceNextSynthesisError === 'function',
       { timeout: 10000 }
     );
     await page.evaluate(() => {
-      (window as any).__e2e.setForceNextSynthesisError(true);
+      window.__e2e!.setForceNextSynthesisError(true);
     });
 
     await selectTwoFacts(page);
@@ -144,11 +144,11 @@ test.describe('Synthesis Flow - Force Error', () => {
     await gotoProject(page, seed.project_id);
 
     await page.waitForFunction(
-      () => typeof (window as any).__e2e?.setForceNextSynthesisError === 'function',
+      () => typeof window.__e2e?.setForceNextSynthesisError === 'function',
       { timeout: 10000 }
     );
     await page.evaluate(() => {
-      (window as any).__e2e.setForceNextSynthesisError(true);
+      window.__e2e!.setForceNextSynthesisError(true);
     });
 
     await selectTwoFacts(page);

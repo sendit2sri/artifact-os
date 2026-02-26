@@ -3,10 +3,11 @@ Workspaces and user preferences API.
 E2E mode: deterministic Personal + Team workspaces when auth not implemented.
 """
 import os
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlmodel import Session, select
 
 from app.db.session import get_session
@@ -26,22 +27,18 @@ def _e2e_mode() -> bool:
 # --- SCHEMAS ---
 
 class WorkspaceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: UUID
     name: str
     created_at: Any
 
-    class Config:
-        from_attributes = True
-
 
 class ProjectSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: UUID
     title: str
     workspace_id: UUID
     created_at: Any
-
-    class Config:
-        from_attributes = True
 
 
 class PreferencePut(BaseModel):
@@ -138,7 +135,7 @@ def put_preference(
     existing = db.exec(q).first()
     if existing:
         existing.value_json = payload.value_json
-        existing.updated_at = __import__("datetime").datetime.utcnow()
+        existing.updated_at = datetime.now(timezone.utc)
         db.add(existing)
     else:
         pref = UserPreference(

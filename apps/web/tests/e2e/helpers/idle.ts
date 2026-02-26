@@ -15,9 +15,9 @@ async function waitForE2EControls(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
   await page.waitForFunction(
     () =>
-      typeof (window as any).__e2e !== 'undefined' &&
-      (typeof (window as any).__e2e?.rqFetchingCount === 'number' ||
-        typeof (window as any).__e2e?.waitForIdle === 'function'),
+      typeof window.__e2e !== 'undefined' &&
+      (typeof window.__e2e?.rqFetchingCount === 'number' ||
+        typeof window.__e2e?.waitForIdle === 'function'),
     null,
     { timeout: 15000 }
   );
@@ -42,7 +42,7 @@ export async function waitForAppIdle(
   await expect(async () => {
     const result = await page.evaluate(
       (o: { requireNoActiveJobs: boolean }) => {
-        const e2e = (window as any).__e2e;
+        const e2e = window.__e2e;
         if (!e2e || typeof e2e.rqFetchingCount === 'undefined') {
           return { idle: false, rqFetch: -1, rqMut: -1, url: location.href };
         }
@@ -51,7 +51,7 @@ export async function waitForAppIdle(
         const jobs = e2e.state?.jobs ?? [];
         const hasActiveJobs =
           o.requireNoActiveJobs &&
-          jobs.some((j: any) => ['PENDING', 'RUNNING'].includes(j.status));
+          jobs.some((j: { status: string }) => ['PENDING', 'RUNNING'].includes(j.status));
         const idle = rqFetch === 0 && rqMut === 0 && !hasActiveJobs;
         return { idle, rqFetch, rqMut, url: location.href };
       },

@@ -63,7 +63,7 @@ Pinned deploy gives perfect rollback. Use the same sha for backend and worker.
 3. Deploy:
    ```bash
    docker compose -f docker-compose.prod.yml pull
-   docker compose -f docker-compose.prod.yml run --rm backend alembic upgrade head
+   docker compose -f docker-compose.prod.yml run --rm backend alembic upgrade heads
    docker compose -f docker-compose.prod.yml up -d --remove-orphans
    docker image prune -f
    ```
