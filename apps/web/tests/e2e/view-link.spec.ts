@@ -6,6 +6,7 @@ import { test, expect } from './fixtures/seed';
 import { gotoProject, switchToAllDataView } from './helpers/nav';
 import { preflightCheckSeedData } from './helpers/preflight';
 import { E2E_SEED_SEARCH_TERM } from './helpers/seed-contract';
+import { ensureFactsControlsOpen } from './helpers/ui';
 
 test.describe('View link', () => {
   test('copy view link and navigate: state matches URL', async ({ page, seed }) => {
@@ -36,6 +37,7 @@ test.describe('View link', () => {
     await preflightCheckSeedData(page);
     mark('preflight done');
 
+    await ensureFactsControlsOpen(page);
     await page.getByTestId('facts-sort-trigger').click();
     await page.getByTestId('facts-sort-option-needs_review').click();
     await page.getByTestId('facts-group-trigger').click();
@@ -60,6 +62,7 @@ test.describe('View link', () => {
     await page.goto(viewUrl, { waitUntil: 'domcontentloaded' });
     mark('navigate viewUrl done');
     await expect(page.getByTestId('fact-card').first()).toBeVisible({ timeout: 10_000 });
+    await ensureFactsControlsOpen(page);
     await expect(async () => {
       await expect(page.getByTestId('facts-sort-trigger')).toContainText(/needs review/i);
       await expect(page.getByTestId('facts-group-trigger')).toContainText(/source/i);

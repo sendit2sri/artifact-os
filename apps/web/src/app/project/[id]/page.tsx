@@ -1951,7 +1951,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                     onClick={() => setFactsControlsOpen(true)}
                                                 >
                                                     <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
-                                                    Controls
+                                                    Filters
                                                 </Button>
                                             </>
                                         )}
@@ -1980,10 +1980,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                         </Button>
                                     )}
 
-                                    {/* Right: Group 2 Search (primary) + Group 3 Controls (secondary) — >= md only */}
+                                    {/* Right: Search + Filters (sheet) — >= md */}
                                     {isMd && (
                                     <div className="flex flex-wrap items-center gap-3 min-w-0">
-                                        {/* Group 2: Search — primary in toolbar */}
                                         <div className="relative min-w-[160px] flex-1 max-w-[14rem]">
                                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                                             <Input
@@ -1995,126 +1994,16 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                 data-testid="facts-search-input"
                                             />
                                         </div>
-                                        {/* Group 3: Sort / Group / Collapse / Views / Selection — secondary */}
-                                        <div className="flex flex-wrap items-center gap-2 min-w-0 text-muted-foreground">
-                                        <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                                            <SelectTrigger data-testid="facts-sort-trigger" className="h-9 w-[160px] text-xs bg-muted/50 border-border/80 text-muted-foreground">
-                                                <SelectValue placeholder="Sort by..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="needs_review" data-testid="facts-sort-option-needs_review">
-                                                    <div className="flex items-center gap-2">
-                                                        <AlertTriangle className="w-3 h-3" />
-                                                        Needs review first
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="key-first">
-                                                    <div className="flex items-center gap-2">
-                                                        <Star className="w-3 h-3" />
-                                                        Key claims first
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="confidence">
-                                                    <div className="flex items-center gap-2">
-                                                        <CheckCircle2 className="w-3 h-3" />
-                                                        High confidence first
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="newest">
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock className="w-3 h-3" />
-                                                        Newest first
-                                                    </div>
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <span className="text-[10px] hidden sm:inline" title="Sorting affects visible list only">Sort affects list</span>
-                                        <Select value={groupBySource ? "source" : "off"} onValueChange={(v) => setGroupBySource(v === "source")}>
-                                            <SelectTrigger data-testid="facts-group-trigger" className="h-9 w-[130px] text-xs bg-muted/50 border-border/80 text-muted-foreground">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="off">No grouping</SelectItem>
-                                                <SelectItem value="source" data-testid="facts-group-option-source">Group by Source</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-
-                                        <label className="flex items-center gap-1.5 text-xs cursor-pointer hover:text-foreground" title="Collapse near-duplicate facts into single rows">
-                                            <input
-                                                type="checkbox"
-                                                checked={collapseSimilar}
-                                                onChange={(e) => setCollapseSimilar(e.target.checked)}
-                                                className="rounded border-border focus-visible:ring-2 focus-visible:ring-ring/30"
-                                                data-testid="toggle-collapse-similar"
-                                            />
-                                            Collapse duplicates
-                                        </label>
-                                        {collapseSimilar && <span data-testid="collapse-similar-enabled" className="sr-only">enabled</span>}
-
-                                        <ViewsPanel
-                                            projectId={projectId}
-                                            open={viewsOpen}
-                                            onOpenChange={setViewsOpen}
-                                            currentState={{
-                                                scopeType,
-                                                scopeValue,
-                                                viewMode,
-                                                reviewStatusFilter,
-                                                sortBy,
-                                                groupBySource,
-                                                searchQuery,
-                                                showOnlySelected,
-                                            }}
-                                            onApply={(state: SavedViewState) => {
-                                                setScopeType(state.scopeType);
-                                                setScopeValue(state.scopeValue);
-                                                setViewMode(state.viewMode);
-                                                setReviewStatusFilter(state.reviewStatusFilter);
-                                                setSortBy(state.sortBy);
-                                                setGroupBySource(state.groupBySource);
-                                                setSearchQuery(state.searchQuery ?? "");
-                                                if (state.showOnlySelected != null) setShowOnlySelected(state.showOnlySelected);
-                                            }}
-                                            buildViewLink={() => (typeof window !== "undefined" ? window.location.href : "")}
-                                            onSetDefault={(viewId) => {
-                                                putPreference(workspaceId, { project_id: projectId, key: "default_view_id", value_json: viewId }).catch(() => {});
-                                            }}
-                                            onApplyView={(viewId) => {
-                                                putPreference(workspaceId, { project_id: projectId, key: "last_view_id", value_json: viewId }).catch(() => {});
-                                            }}
-                                        />
-                                        <label className="flex items-center gap-1.5 text-xs cursor-pointer hover:text-foreground" title="Show only selected facts">
-                                            <input
-                                                type="checkbox"
-                                                checked={showOnlySelected}
-                                                onChange={(e) => setShowOnlySelected(e.target.checked)}
-                                                className="rounded border-border focus-visible:ring-2 focus-visible:ring-ring/30"
-                                                data-testid="facts-selected-only-toggle"
-                                            />
-                                            Selected only
-                                        </label>
                                         <Button
-                                            data-testid="facts-dedup-trigger"
+                                            data-testid="facts-controls-open"
                                             variant="outline"
                                             size="sm"
-                                            className="h-9 text-xs text-muted-foreground border-border/80 hover:text-foreground"
-                                            onClick={() => dedupMutation.mutate()}
-                                            disabled={dedupMutation.isPending || (facts ?? []).length < 2}
+                                            className="h-9 text-xs shrink-0"
+                                            onClick={() => setFactsControlsOpen(true)}
                                         >
-                                            {dedupMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-                                            Clean duplicates
+                                            <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
+                                            Filters
                                         </Button>
-                                        <label className="flex items-center gap-1.5 text-xs cursor-pointer hover:text-foreground">
-                                            <input
-                                                type="checkbox"
-                                                data-testid="facts-show-suppressed-toggle"
-                                                checked={showSuppressed}
-                                                onChange={(e) => setShowSuppressed(e.target.checked)}
-                                                className="rounded border-border focus-visible:ring-2 focus-visible:ring-ring/30"
-                                            />
-                                            Show suppressed
-                                        </label>
-                                        </div>
                                     </div>
                                     )}
                                 </div>

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/seed';
 import { gotoProject, switchToAllDataView } from './helpers/nav';
+import { ensureFactsControlsOpen } from './helpers/ui';
 import { seedWithSimilarFacts } from './helpers/collapse-similar';
 
 /**
@@ -18,6 +19,7 @@ test.describe('Similar Drawer Selection', () => {
   }) => {
     await switchToAllDataView(page);
     await expect(page.getByTestId('fact-card').first()).toBeVisible({ timeout: 10000 });
+    await ensureFactsControlsOpen(page);
 
     const toggle = page.getByTestId('toggle-collapse-similar');
     await expect(toggle).toBeVisible();

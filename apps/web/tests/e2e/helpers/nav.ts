@@ -9,13 +9,12 @@ import { expect, Page } from '@playwright/test';
 export async function resetFactsViewState(page: Page): Promise<void> {
   await expect(page.getByTestId('facts-search-input')).toBeVisible({ timeout: 5000 });
 
-  // Open controls sheet if toggles not visible (mobile layout)
-  const collapseToggle = page.getByTestId('toggle-collapse-similar');
-  if (!(await collapseToggle.isVisible().catch(() => false))) {
-    await page.getByTestId('facts-controls-open').click({ timeout: 2000 }).catch(() => {});
-    await page.waitForTimeout(200);
-  }
+  // Open Filters sheet (sort/group/collapse/selection live only in sheet)
+  await page.getByTestId('facts-controls-open').click({ timeout: 2000 });
+  await expect(page.getByTestId('facts-controls-sheet')).toBeVisible({ timeout: 5000 });
+  await page.waitForTimeout(200);
 
+  const collapseToggle = page.getByTestId('toggle-collapse-similar');
   // Uncheck toggles that trigger alternate render paths
   if (await collapseToggle.isChecked().catch(() => false)) {
     await collapseToggle.click();
@@ -68,21 +67,23 @@ export async function gotoProject(page: Page, projectId: string) {
   }
 }
 
-/** Enable "Collapse duplicates" toggle. Call after ensureFactsControlsOpen if on mobile. */
+/** Enable "Collapse duplicates" toggle. Opens Filters sheet first (controls live in sheet). */
 export async function toggleCollapseOn(page: Page): Promise<void> {
+  await page.getByTestId('facts-controls-open').click({ timeout: 2000 });
+  await expect(page.getByTestId('facts-controls-sheet')).toBeVisible({ timeout: 5000 });
+  await page.waitForTimeout(200);
   const toggle = page.getByTestId('toggle-collapse-similar');
-  if (!(await toggle.isVisible().catch(() => false))) {
-    await page.getByTestId('facts-controls-open').click({ timeout: 2000 }).catch(() => {});
-    await page.waitForTimeout(200);
-  }
   if (!(await toggle.isChecked().catch(() => false))) {
     await toggle.check();
     await page.waitForTimeout(200);
   }
 }
 
-/** Set "Group by Source" in facts controls. */
+/** Set "Group by Source" in facts controls. Opens Filters sheet first (controls live in sheet). */
 export async function groupBySource(page: Page): Promise<void> {
+  await page.getByTestId('facts-controls-open').click({ timeout: 2000 });
+  await expect(page.getByTestId('facts-controls-sheet')).toBeVisible({ timeout: 5000 });
+  await page.waitForTimeout(200);
   const groupTrigger = page.getByTestId('facts-group-trigger');
   await expect(groupTrigger).toBeVisible({ timeout: 5000 });
   const groupText = await groupTrigger.textContent().catch(() => '');

@@ -13,17 +13,20 @@
 
 import { test, expect } from "./fixtures/test";
 import { waitForAppIdle } from "./helpers/synthesis";
+import { ensureFactsControlsOpen } from "./helpers/ui";
 
 test.describe("View State Refactor - Acceptance Tests", () => {
   test.beforeEach(async ({ page, projectId }) => {
     await page.goto(`/project/${projectId}`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
   });
 
   test("Bug #7 (CRITICAL): Server prefs apply after query resolves", async ({ page, projectId }) => {
     // Set server preference for sort
     await page.goto(`/project/${projectId}`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
     // Change sort to "newest"
     await page.click('[data-testid="facts-sort-trigger"]');
@@ -37,6 +40,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
     await waitForAppIdle(page);
 
     // Verify sort preference was applied (NOT default "needs_review")
+    await ensureFactsControlsOpen(page);
     const sortTrigger = page.locator('[data-testid="facts-sort-trigger"]');
     await expect(sortTrigger).toContainText(/Newest first/i);
 
@@ -55,6 +59,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
     // Navigate with explicit URL param (should override pref)
     await page.goto(`/project/${projectId}?sort=confidence`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
     // Verify URL won (not pref)
     const sortTrigger = page.locator('[data-testid="facts-sort-trigger"]');
@@ -63,6 +68,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
     // Navigate without param - pref should apply again
     await page.goto(`/project/${projectId}`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
     await expect(sortTrigger).toContainText(/Newest first/i);
   });
@@ -71,6 +77,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
     // Start with sort=newest
     await page.goto(`/project/${projectId}?sort=newest`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
     const sortTrigger = page.locator('[data-testid="facts-sort-trigger"]');
     await expect(sortTrigger).toContainText(/Newest first/i);
@@ -78,6 +85,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
     // Navigate to different sort via URL
     await page.goto(`/project/${projectId}?sort=confidence`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
     // Verify state updated (not frozen with empty deps)
     await expect(sortTrigger).toContainText(/Confidence/i);
@@ -85,6 +93,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
     // Navigate to no params
     await page.goto(`/project/${projectId}`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
     // Should show default or pref (not stuck on confidence)
     await expect(sortTrigger).not.toContainText(/Confidence/i);
@@ -224,6 +233,7 @@ test.describe("View State Refactor - Acceptance Tests", () => {
     expect(hasOldKeys).toBe(false);
 
     // Verify state was applied (sort should be newest from migration)
+    await ensureFactsControlsOpen(page);
     const sortTrigger = page.locator('[data-testid="facts-sort-trigger"]');
     await expect(sortTrigger).toContainText(/Newest first/i);
   });
@@ -366,8 +376,9 @@ test.describe("View State Refactor - Acceptance Tests", () => {
   test("Control heights standardized to h-9", async ({ page, projectId }) => {
     await page.goto(`/project/${projectId}`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
-    // Check sort select height
+    // Check sort select height (controls live in Filters sheet)
     const sortTrigger = page.locator('[data-testid="facts-sort-trigger"]');
     const sortBox = await sortTrigger.boundingBox();
     expect(sortBox?.height).toBeCloseTo(36, 2); // h-9 = 36px
@@ -400,6 +411,7 @@ test.describe("View State - Edge Cases", () => {
     }
 
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
     // Should be stable at final state
     const sortTrigger = page.locator('[data-testid="facts-sort-trigger"]');
@@ -455,6 +467,7 @@ test.describe("View State - Edge Cases", () => {
     const newPage = await context.newPage();
     await newPage.goto(shareableUrl);
     await waitForAppIdle(newPage);
+    await ensureFactsControlsOpen(newPage);
 
     // State should match exactly
     const sortTrigger = newPage.locator('[data-testid="facts-sort-trigger"]');

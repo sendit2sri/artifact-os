@@ -5,7 +5,7 @@
 
 import { test, expect } from "./fixtures/seed";
 import { gotoProject, switchToAllDataView } from "./helpers/nav";
-import { closeOverlays } from "./helpers/ui";
+import { closeOverlays, ensureFactsControlsOpen } from "./helpers/ui";
 import { waitForAppIdle } from "./helpers/setup";
 
 
@@ -20,6 +20,7 @@ test.describe("Preferences persist", () => {
   }) => {
     await switchToAllDataView(page);
     await closeOverlays(page);
+    await ensureFactsControlsOpen(page);
 
     await page.getByTestId("facts-sort-trigger").click();
     await page.getByTestId("facts-sort-option-needs_review").click();
@@ -43,6 +44,7 @@ test.describe("Preferences persist", () => {
 
     await page.goto(`/project/${seed.project_id}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("fact-card").first()).toBeVisible({ timeout: 15_000 });
+    await ensureFactsControlsOpen(page);
 
     await expect(async () => {
       await expect(page.getByTestId("facts-sort-trigger")).toContainText(/needs review/i);
