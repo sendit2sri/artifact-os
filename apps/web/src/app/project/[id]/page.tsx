@@ -27,7 +27,7 @@ import { computeAppPhase, getPhaseCTA, canPerformAction } from "@/lib/phase";
 import { fetchProject, fetchProjectFacts, fetchProjectJobs, ingestUrl, resetProject, synthesizeFacts, Fact, Job, uploadFile, batchUpdateFacts, Output, fetchProjectOutputs, fetchOutput, patchOutput, OutputSummary, updateProjectName, seedDemoProject, seedDemoSources, retrySource, updateFact, dedupFacts, fetchSourcesSummary, fetchWorkspaces, fetchPreferences, putPreference, fetchFactsGroup, fetchOutputEvidenceMap, type FactsGroupedResponse, type OutputEvidenceMapFact, type SynthesizeFactInput } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Layout, Search, Sparkles, X, Home, ChevronRight, Download, UploadCloud, Check, Star, FileText, Video, AlignLeft, Moon, Sun, Clock, CheckCircle2, AlertTriangle, History, List, Activity, Menu, SlidersHorizontal, Share2 } from "lucide-react";
+import { Loader2, Plus, Layout, Search, Sparkles, X, Home, ChevronRight, Download, UploadCloud, Check, Star, FileText, Video, AlignLeft, Moon, Sun, Clock, CheckCircle2, AlertTriangle, History, List, Activity, Menu, SlidersHorizontal, Share2, FolderOpen } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -49,6 +49,7 @@ import { AddSourceSheet } from "@/components/AddSourceSheet";
 import { SourcesDrawer } from "@/components/SourcesDrawer";
 import { FactsControlsSheet } from "@/components/FactsControlsSheet";
 import { FactsGraphView } from "@/components/FactsGraphView";
+import { BucketsPanel, type Bucket } from "@/components/BucketsPanel";
 
 const getDomain = (u: string) => {
     try { return new URL(u).hostname.replace(/^www\./, ""); }
@@ -203,6 +204,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     const [addSourceSheetOpen, setAddSourceSheetOpen] = useState(false);
     const [sourcesDrawerOpen, setSourcesDrawerOpen] = useState(false);
     const [factsControlsOpen, setFactsControlsOpen] = useState(false);
+    const [buckets, setBuckets] = useState<Bucket[]>([]);
+    const [showBucketsPanel, setShowBucketsPanel] = useState(false);
+    const [synthesisBucketLabel, setSynthesisBucketLabel] = useState<string | null>(null);
     const isSm = useMediaQuery("(min-width: 640px)");
     const isMd = useMediaQuery("(min-width: 768px)");
     const isLg = useMediaQuery("(min-width: 1024px)");
@@ -844,7 +848,11 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         }
     };
 
-    const executeSynthesis = async (finalRichFacts: SynthesizeFactInput[], mode: "paragraph" | "research_brief" | "script_outline" | "split") => {
+    const executeSynthesis = async (
+        finalRichFacts: SynthesizeFactInput[],
+        mode: "paragraph" | "research_brief" | "script_outline" | "split",
+        opts?: { bucketLabel?: string }
+    ) => {
         setLastSynthesisError(null);
         setLastSynthesisPayload({ richFacts: finalRichFacts, mode });
         setIsSynthesizing(true);
@@ -877,6 +885,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             const full = await fetchOutput(result.output_id);
             outputCacheRef.current.set(full.id, full);
             setCurrentOutput(full);
+            setSynthesisBucketLabel(opts?.bucketLabel ?? null);
             setShowOutputDrawer(true);
             setLastSynthesisPayload(null);
             
@@ -937,6 +946,41 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     };
 
     const factMap = useMemo(() => new Map((facts ?? []).map((f) => [f.id, f])), [facts]);
+    const bucketsFactMap = useMemo(
+        () => new Map((facts ?? []).map((f) => [f.id, { id: f.id, text: f.fact_text, source_domain: f.source_domain }])),
+        [facts]
+    );
+
+    const addFactToBucket = useCallback((bucketId: string, factId: string) => {
+        setBuckets((prev) =>
+            prev.map((b) =>
+                b.id === bucketId ? { ...b, factIds: b.factIds.includes(factId) ? b.factIds : [...b.factIds, factId] } : b
+            )
+        );
+    }, []);
+    const handleGenerateFromBucket = useCallback(
+        (bucket: Bucket) => {
+            const projectFacts = facts ?? [];
+            const richFacts = bucket.factIds
+                .map((id) => factMap.get(id))
+                .filter(Boolean)
+                .map((f) => {
+                    const job = jobs?.find((j) => j.params.url === f!.source_url);
+                    return {
+                        id: f!.id,
+                        text: f!.fact_text,
+                        title: job?.result_summary?.source_title || f!.source_domain,
+                        url: f!.source_url,
+                        section: f!.section_context,
+                        review_status: f!.review_status,
+                        is_pinned: f!.is_pinned ?? false,
+                    };
+                });
+            if (richFacts.length < 2) return;
+            executeSynthesis(richFacts, synthesisMode, { bucketLabel: bucket.name });
+        },
+        [facts, jobs, factMap, synthesisMode]
+    );
 
     const handleReviewIssuesFromOutput = useCallback(async () => {
         const output = currentOutput;
@@ -1591,6 +1635,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                     onClick={async () => {
                                         if (!lastOutputSummary) return;
                                         setOutputOpenedFromHistory(false);
+                                        setSynthesisBucketLabel(null);
                                         const cached = outputCacheRef.current.get(lastOutputSummary.id);
                                         if (cached) {
                                             setCurrentOutput(cached);
@@ -1970,6 +2015,16 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                     <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
                                                     Filters
                                                 </Button>
+                                                <Button
+                                                    data-testid="buckets-panel-open"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-9 text-xs shrink-0"
+                                                    onClick={() => setShowBucketsPanel(true)}
+                                                >
+                                                    <FolderOpen className="w-3.5 h-3.5 mr-1.5" />
+                                                    Buckets
+                                                </Button>
                                             </>
                                         )}
                                     </div>
@@ -2020,6 +2075,16 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                         >
                                             <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
                                             Filters
+                                        </Button>
+                                        <Button
+                                            data-testid="buckets-panel-open"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-9 text-xs shrink-0"
+                                            onClick={() => setShowBucketsPanel(true)}
+                                        >
+                                            <FolderOpen className="w-3.5 h-3.5 mr-1.5" />
+                                            Buckets
                                         </Button>
                                     </div>
                                     )}
@@ -2248,6 +2313,8 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                             selectionMode={selectionModeActive || selectedFacts.size > 0}
                                                             undoManager={undoManager}
                                                             onSimilarChipClick={collapseSimilar && fact.group_id ? (f) => { setSimilarDrawerGroupId(f.group_id!); setSimilarDrawerRepFact(f); } : undefined}
+                                                            buckets={buckets}
+                                                            onAddToBucket={(factId, bucketId) => addFactToBucket(bucketId, factId)}
                                                         />
                                                     ))}
                                                 </div>
@@ -2272,6 +2339,8 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                     selectionMode={selectionModeActive || selectedFacts.size > 0}
                                                     undoManager={undoManager}
                                                     onSimilarChipClick={collapseSimilar && fact.group_id ? (f) => { setSimilarDrawerGroupId(f.group_id!); setSimilarDrawerRepFact(f); } : undefined}
+                                                    buckets={buckets}
+                                                    onAddToBucket={(factId, bucketId) => addFactToBucket(bucketId, factId)}
                                                 />
                                             ))}
                                         </div>
@@ -2548,6 +2617,17 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 }}
             />
 
+            <BucketsPanel
+                open={showBucketsPanel}
+                onOpenChange={setShowBucketsPanel}
+                buckets={buckets}
+                onBucketsChange={setBuckets}
+                factMap={bucketsFactMap}
+                onGenerateFromBucket={handleGenerateFromBucket}
+                isSynthesizing={isSynthesizing}
+                onFactDrop={addFactToBucket}
+            />
+
             <SelectedFactsDrawer
                 open={showSelectedFactsDrawer}
                 onOpenChange={setShowSelectedFactsDrawer}
@@ -2653,6 +2733,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                     if (!open) setOutputOpenedFromHistory(false);
                 }}
                 output={currentOutput}
+                synthesisBucketLabel={synthesisBucketLabel}
                 openedFromHistory={outputOpenedFromHistory}
                 onBackToHistory={popPanel}
                 pinned={pinnedPanels.output}
@@ -2757,6 +2838,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                     historyScrollTopRef.current = historyContentRef.current?.scrollTop ?? 0;
                                                     pushPanel("output");
                                                     setOutputOpenedFromHistory(true);
+                                                    setSynthesisBucketLabel(null);
                                                     const cached = outputCacheRef.current.get(item.id);
                                                     if (cached) {
                                                         setCurrentOutput(cached);

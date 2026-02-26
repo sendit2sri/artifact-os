@@ -3,10 +3,11 @@ import { Fact, updateFact } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Quote, CheckCircle2, AlertTriangle, CheckSquare, Square, Star, Copy, ExternalLink, FileText, Globe, AlertCircle, Flag, X, Pin, PinOff } from "lucide-react";
+import { Quote, CheckCircle2, AlertTriangle, CheckSquare, Square, Star, Copy, ExternalLink, FileText, Globe, AlertCircle, Flag, X, Pin, PinOff, FolderPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import type { UndoManager, UndoEntry } from "@/hooks/useUndoManager";
 
@@ -26,6 +27,9 @@ interface FactCardProps {
     undoManager?: UndoManager | null;
     /** When collapse similar is on: callback when user clicks +N similar chip */
     onSimilarChipClick?: (fact: Fact) => void;
+    /** Buckets for "Add to bucket" menu; when provided with onAddToBucket, shows dropdown */
+    buckets?: { id: string; name: string; factIds: string[] }[];
+    onAddToBucket?: (factId: string, bucketId: string) => void;
 }
 
 function statusLabel(s: ReviewStatus): string {
@@ -60,7 +64,7 @@ function showToastWithUndo(label: string, entry: UndoEntry, undoManager: UndoMan
     }
 }
 
-export function FactCard({ fact, onViewEvidence, isSelected, onToggleSelect, onEnterSelectionMode, selectionMode, canonicalFact, undoManager, onSimilarChipClick }: FactCardProps) {
+export function FactCard({ fact, onViewEvidence, isSelected, onToggleSelect, onEnterSelectionMode, selectionMode, canonicalFact, undoManager, onSimilarChipClick, buckets, onAddToBucket }: FactCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedText, setEditedText] = useState(fact.fact_text);
     const [displayStatus, setDisplayStatus] = useState<ReviewStatus>(fact.review_status);
@@ -124,6 +128,14 @@ export function FactCard({ fact, onViewEvidence, isSelected, onToggleSelect, onE
             data-testid="fact-card"
             data-fact-id={fact.id}
             data-pinned={fact.is_pinned ? "true" : "false"}
+            draggable={!!onAddToBucket}
+            onDragStart={(e) => {
+                if (onAddToBucket) {
+                    e.stopPropagation();
+                    e.dataTransfer.setData("fact-id", fact.id);
+                    e.dataTransfer.effectAllowed = "copy";
+                }
+            }}
             className={cn(
                 "group relative flex items-center gap-4 px-4 py-3 bg-surface transition-all cursor-pointer rounded-lg mb-2",
                 "hover:bg-fact-hover hover:shadow-sm",
@@ -389,6 +401,41 @@ export function FactCard({ fact, onViewEvidence, isSelected, onToggleSelect, onE
                         <TooltipContent>Copy</TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
+
+                {buckets?.length && onAddToBucket && (
+                    <DropdownMenu>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            data-testid="fact-add-to-bucket"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <FolderPlus className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>Add to bucket</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            {buckets.map((b) => (
+                                <DropdownMenuItem
+                                    key={b.id}
+                                    data-testid={`fact-add-to-bucket-${b.id}`}
+                                    onClick={() => onAddToBucket(fact.id, b.id)}
+                                    disabled={b.factIds.includes(fact.id)}
+                                >
+                                    {b.name} {b.factIds.includes(fact.id) ? "✓" : ""}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
 
                 <TooltipProvider>
                     <Tooltip>

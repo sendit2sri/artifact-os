@@ -56,6 +56,8 @@ interface Props {
     onOpenRepick?: () => void;
     /** Open Synthesis History drawer (used when output drawer covers the main History button) */
     onOpenHistory?: () => void;
+    /** When set, show "Angle: <label>" for bucket-generated output */
+    synthesisBucketLabel?: string | null;
 }
 
 const MODE_TITLES: Record<string, string> = {
@@ -66,7 +68,7 @@ const MODE_TITLES: Record<string, string> = {
     split_sections: "Split Sections",
 };
 
-export function OutputDrawer({ open, onOpenChange, output, openedFromHistory, onBackToHistory, pinned = false, onPinChange, outputPinned = false, onOutputPinChange, focusMode = false, onFocusChange, onRegenerate, isRegenerating = false, onViewSelectedFacts, projectId, onOpenEvidenceForFact, onReviewIssues, onRegenerateApprovedOnly, onOpenRepick, onOpenHistory }: Props) {
+export function OutputDrawer({ open, onOpenChange, output, openedFromHistory, onBackToHistory, pinned = false, onPinChange, outputPinned = false, onOutputPinChange, focusMode = false, onFocusChange, onRegenerate, isRegenerating = false, onViewSelectedFacts, projectId, onOpenEvidenceForFact, onReviewIssues, onRegenerateApprovedOnly, onOpenRepick, onOpenHistory, synthesisBucketLabel }: Props) {
     const contentScrollRef = useRef<HTMLDivElement>(null);
     const [evidenceMap, setEvidenceMap] = useState<{ facts: OutputEvidenceMapFact[]; sources: { domain: string; url: string; source_type?: string | null }[] } | null>(null);
     const [evidenceMapLoading, setEvidenceMapLoading] = useState(false);
@@ -246,6 +248,9 @@ export function OutputDrawer({ open, onOpenChange, output, openedFromHistory, on
                             <span className="truncate">{titleLabel}</span>
                         </SheetTitle>
                         <div data-testid="output-drawer-meta" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            {synthesisBucketLabel && (
+                                <span data-testid="output-drawer-angle">Angle: {synthesisBucketLabel}</span>
+                            )}
                             <span data-testid="output-drawer-meta-facts">{output.fact_ids.length} facts</span>
                             <span data-testid="output-drawer-meta-sources">{output.source_count} sources</span>
                             {output.quality_stats && (
