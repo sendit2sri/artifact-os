@@ -138,10 +138,12 @@ def test_youtube_ingest_with_captions_completes(db_session, test_project, test_j
     assert job is not None
     assert job.status == JobStatus.COMPLETED
     assert job.result_summary.get("source_type") == "YOUTUBE"
+    assert job.result_summary.get("facts_count", 0) >= 1
 
     docs = db_session.exec(select(SourceDoc).where(SourceDoc.project_id == test_project.id)).all()
     assert len(docs) == 1
     assert "lithium" in (docs[0].content_text or "").lower()
+    assert docs[0].content_text_raw is not None and "## [" in (docs[0].content_text_raw or "")
 
     nodes = db_session.exec(select(ResearchNode).where(ResearchNode.project_id == test_project.id)).all()
     assert len(nodes) >= 1

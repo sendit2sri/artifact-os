@@ -75,3 +75,16 @@
   1) Files changed/added
   2) Code (patch or per-file sections)
   3) Commands to run (tests/migrations)
+
+## YouTube / URL ingest (guardrails)
+- **Do not rely on live YouTube in tests.** Use the `YouTubeTranscriptProvider` interface: default provider = real captions fetcher (`DefaultTranscriptProvider`); test provider = fixture-based (`FixtureTranscriptProvider` in `tests/fixtures/youtube`, using `load_fixture` + `segments_for_fetcher`). All YouTube-related tests must use the fixture provider so CI never hits the network.
+- **URL ingest — where text extraction is decided:** When editing “how we extract text from a URL”, open these backend files first and stay scoped to them (do not wander):
+  - `apps/backend/app/api/ingest.py` — router: POST /ingest, detect_source_type, enqueue job
+  - `apps/backend/app/workers/ingest_task.py` — worker: branch on source_type (WEB / REDDIT / YOUTUBE), call extract()
+  - `apps/backend/app/extractors/__init__.py` — detect_source_type, normalize_url, extract() dispatch
+  - `apps/backend/app/extractors/youtube.py` — YouTubeTranscriptProvider, extract_youtube
+  - `apps/backend/app/extractors/reddit.py` — extract_reddit
+  - `apps/backend/app/extractors/web.py` — extract_web
+  - `apps/backend/tests/fixtures/youtube/__init__.py` — fixture loader, FixtureTranscriptProvider
+  - `apps/backend/tests/test_extractors_youtube.py` — extractor tests (fixture provider only)
+  - `apps/backend/tests/test_ingest_task_youtube.py` — ingest worker YouTube tests (mock extract; no network)

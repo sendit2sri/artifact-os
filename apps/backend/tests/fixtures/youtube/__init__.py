@@ -43,7 +43,7 @@ def load_fixture(video_id: str) -> Optional[TranscriptFixture]:
 
 def segments_for_fetcher(fixture: Optional[TranscriptFixture]) -> Optional[List[Dict[str, Any]]]:
     """
-    Convert fixture segments to format expected by extract_youtube's transcript_fetcher
+    Convert fixture segments to format expected by extract_youtube's transcript_provider
     (start, duration, text). Returns None if captions_available is false or no segments.
     """
     if not fixture or not fixture.get("captions_available"):
@@ -59,3 +59,14 @@ def segments_for_fetcher(fixture: Optional[TranscriptFixture]) -> Optional[List[
         }
         for s in segs
     ]
+
+
+class FixtureTranscriptProvider:
+    """
+    YouTubeTranscriptProvider that uses fixture loader only. Use in all tests;
+    do not rely on live YouTube in CI.
+    """
+
+    def get_transcript(self, video_id: str) -> Optional[List[Dict[str, Any]]]:
+        fixture = load_fixture(video_id)
+        return segments_for_fetcher(fixture)

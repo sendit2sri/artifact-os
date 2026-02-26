@@ -1,32 +1,53 @@
 """
 YouTube transcript extraction: title, channel, segments (start_s, end_s, text), video_url.
 Uses youtube-transcript-api when available (no API key). Captions-only; no audio download.
+Tests must use a fixture-based provider; do not rely on live YouTube (see .cursorrules).
 """
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+
 from urllib.parse import urlparse, parse_qs
 
-# Fetcher: (video_id: str) -> raw segment list or None (captions unavailable). Mockable for tests.
-TranscriptFetcher = Callable[[str], Optional[List[Dict[str, Any]]]]
+
+@runtime_checkable
+class YouTubeTranscriptProvider(Protocol):
+    """Interface for transcript fetching. Default = real API; tests = fixture-based (no network)."""
+
+    def get_transcript(self, video_id: str) -> Optional[List[Dict[str, Any]]]:
+        """Return raw segments [{start, duration, text}] or None if captions unavailable."""
+        ...
 
 
-def _default_transcript_fetcher(video_id: str) -> Optional[List[Dict[str, Any]]]:
-    """Fetch transcript via youtube-transcript-api. Returns None if captions unavailable."""
-    try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-        return YouTubeTranscriptApi.get_transcript(video_id)
-    except Exception as e:
-        print(f"⚠️ YouTube transcript failed: {e}")
-        return None
+class DefaultTranscriptProvider:
+    """Real captions fetcher (youtube-transcript-api). Use in production only."""
+
+    def get_transcript(self, video_id: str) -> Optional[List[Dict[str, Any]]]:
+        try:
+            from youtube_transcript_api import YouTubeTranscriptApi
+            return YouTubeTranscriptApi.get_transcript(video_id)
+        except Exception as e:
+            print(f"⚠️ YouTube transcript failed: {e}")
+            return None
+
+
+_default_provider: Optional[YouTubeTranscriptProvider] = None
+
+
+def get_default_transcript_provider() -> YouTubeTranscriptProvider:
+    """Default provider = real captions fetcher. Tests must inject a fixture-based provider."""
+    global _default_provider
+    if _default_provider is None:
+        _default_provider = DefaultTranscriptProvider()
+    return _default_provider
 
 
 def extract_youtube(
     url: str,
-    transcript_fetcher: Optional[TranscriptFetcher] = None,
+    transcript_provider: Optional[YouTubeTranscriptProvider] = None,
 ) -> Dict[str, Any]:
     """
     Fetch transcript and video metadata (captions-only).
     Returns: title, channel, transcript[] (start_s, end_s, text), video_url.
-    URL is normalized to canonical form (no ?si= etc). Inject transcript_fetcher in tests to avoid live calls.
+    URL is normalized to canonical form (no ?si= etc). Tests must pass a fixture-based provider (no live YouTube).
     """
     result: Dict[str, Any] = {
         "title": "",
@@ -38,8 +59,8 @@ def extract_youtube(
     if not video_id:
         return result
 
-    fetcher = transcript_fetcher or _default_transcript_fetcher
-    transcript_list = fetcher(video_id)
+    provider = transcript_provider or get_default_transcript_provider()
+    transcript_list = provider.get_transcript(video_id)
     if transcript_list is None or len(transcript_list) == 0:
         return result
 
