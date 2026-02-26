@@ -621,11 +621,11 @@ export async function updateJobSummary(jobId: string, summary: string) {
 const SynthesisResponseSchema = z.object({
   synthesis: z.string().min(1),
   output_id: z.string().uuid(),
-  clusters: z.array(z.any()).optional(),
+  clusters: z.array(z.unknown()).optional(),
 });
 
 const SynthesisErrorSchema = z.object({
-  detail: z.union([z.string(), z.any()]),
+  detail: z.union([z.string(), z.unknown()]),
   code: z.string().optional(),
 });
 

@@ -71,7 +71,7 @@
     "eslint-plugin-react-hooks": "^7.0.0",
     "postcss": "^8",
     "tailwindcss": "^4",
-    "typescript": "5.9.3"
+    "typescript": "^5"
   },
   "overrides": {
     "eslint-plugin-react": "^7.37.0",
