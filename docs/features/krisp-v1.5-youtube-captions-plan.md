@@ -1,98 +1,107 @@
-# Krisp V1.5: YouTube Captions-Only Ingest — Plan
+# Krisp V1.5: YouTube Captions-Only Ingestion — Plan
 
 ## Summary
 
-Implement YouTube URL ingestion using **captions/transcript only** (no audio download). When captions are unavailable, show a clear fallback message and do not enqueue a broken job. The codebase already implements captions-only flow; this plan aligns copy, confirms behavior, and adds minimal tests.
+Implement YouTube URL ingestion via **captions-only** transcript fetching (no audio download), pipe transcript through existing extraction, and surface a **typed error + minimal UX fallback** when captions are unavailable.
 
 ## Context
 
-- **Current state:** Ingest API detects YouTube via `detect_source_type()`; worker calls `extract(url, SourceType.YOUTUBE)` → `extract_youtube()` which uses `youtube-transcript-api` (captions only, no API key, no audio). If transcript is empty, job is failed with `TRANSCRIPT_DISABLED` and a message; otherwise transcript is stored as source content and fed into the existing fact extraction pipeline.
-- **Gap:** Fallback copy and UI label should match the product spec; tests for YouTube extractor and failure path are minimal.
+- **Current state:** The backend already detects YouTube URLs (`detect_source_type`), normalizes them, and in the worker calls `extract(url, SourceType.YOUTUBE)` → `extract_youtube(url)` which uses `youtube-transcript-api` (captions-only). If transcript is empty, the worker sets the job to FAILED with `TRANSCRIPT_DISABLED` and message "Captions not available — upload audio file". The web app already shows failed jobs and `error_code` / `error_message` in ProcessingTimeline and SourceTracker.
+- **Gaps:** (1) Standardize error code to `CAPTIONS_UNAVAILABLE` for this case and ensure it is never a generic 500. (2) Add CI-safe unit tests for the ingest worker YouTube path (fixtures/mocks, no network). (3) Minimal UI: show a clear “upload audio” fallback when `CAPTIONS_UNAVAILABLE`.
 
-## Proposed Backend Approach (Captions Only)
+---
 
-- **How captions are obtained:** Keep using `youtube-transcript-api` in `apps/backend/app/extractors/youtube.py`. It uses YouTube’s public timedtext/caption endpoints (no audio/video download, no yt-dlp). ToS-safe for reading captions that the video owner has made available.
-- **No changes to ingestion path:** No new endpoints; no audio download. YouTube remains a branch inside the existing `ingest_url` Celery task: `extract_youtube(url)` → if `transcript` empty → fail job with clear message; else build `text_content` from segments → create/update `SourceDoc` → `extract_facts_from_markdown()` → create facts.
+## 1) Backend flow changes + where YouTube handling plugs in
 
-## Exact Endpoints Impacted
+- **API (`apps/backend/app/api/ingest.py`):** No change. Already:
+  - Accepts `IngestURLRequest(project_id, workspace_id, url)`.
+  - Uses `detect_source_type(url)` → YOUTUBE for youtube.com/youtu.be.
+  - Normalizes URL, dedupes by canonical_url, creates Job, queues `ingest_url` task. No synchronous YouTube call; no 500 for “captions unavailable” — that outcome is async (job ends in FAILED with typed `result_summary`).
 
-- **POST /ingest** — No contract change. Request/response unchanged. Behavior: YouTube URLs already go through same flow; only the **error_message** string for the TRANSCRIPT_DISABLED case is updated (see below).
-- **POST /ingest/file** — Unchanged (used for upload-audio fallback).
-- No new routes.
+- **Worker (`apps/backend/app/workers/ingest_task.py`):**
+  - **YouTube branch (existing):** After `extract(url, source_type)` for `SourceType.YOUTUBE`, `extracted` has `title`, `transcript` (list of segments), `video_url`. If `not transcript`:
+    - **Change:** Call `_set_job_failed(job, "CAPTIONS_UNAVAILABLE", "Captions not available — upload audio file", {...})` instead of `TRANSCRIPT_DISABLED`. Keep same `result_summary` shape (`source_title`, `source_type`).
+  - **Exception path:** In the broad `except` that handles failures, when setting `error_code` from `str(e)`, if the exception message indicates captions/transcript unavailable (e.g. "transcript" / "disabled" / "not available"), set `error_code = "CAPTIONS_UNAVAILABLE"` so a YouTube transcript failure never surfaces as a generic UNSUPPORTED/500 to the user.
+  - **ERROR_CODES:** Add `"CAPTIONS_UNAVAILABLE"` to the tuple (and keep TRANSCRIPT_DISABLED for backward compatibility if needed; prefer one canonical code for “no captions” = CAPTIONS_UNAVAILABLE).
 
-## Data Flow: Transcript → Extraction
+- **Extractors:** No change. `app/extractors/youtube.py` already:
+  - Fetches captions only (`YouTubeTranscriptApi.get_transcript(video_id)`), no audio download.
+  - Returns `{ title, channel, transcript[], video_url }`; empty transcript when captions disabled/unavailable.
+  - `extract(url, source_type)` in `app/extractors/__init__.py` already delegates to `extract_youtube(url)` for YOUTUBE.
 
-1. User submits URL → `POST /ingest` → `detect_source_type(url)` → `YOUTUBE` → Job created, `ingest_url` task enqueued.
-2. Worker: `extract(url, SourceType.YOUTUBE)` → `extract_youtube(url)`:
-   - Gets `video_id` from URL; calls `YouTubeTranscriptApi.get_transcript(video_id)` (captions only).
-   - Returns `{ title, channel, transcript: [{ start_s, end_s, text }], video_url }`.
-3. If `transcript` is empty: `_set_job_failed(job, "TRANSCRIPT_DISABLED", "<fallback message>", ...)`; commit; return. **No SourceDoc created; job not “broken” in the queue.**
-4. If transcript present: Build `text_content` as `## [start_s-end_s]\n{text}` per segment; set `content_formats["text_raw"]`; create/update `SourceDoc` (url, title, content_text, content_text_raw, metadata_json with video_url and transcript); then `extract_facts_from_markdown(text_content)` → persist facts; complete job.
+**Flow summary:** URL → API creates Job → Celery `ingest_url` → `detect_source_type` (from job params) → for YOUTUBE, `extract(url, YOUTUBE)` → `extract_youtube(url)` → transcript segments → if empty → `_set_job_failed(CAPTIONS_UNAVAILABLE, ...)`; else build `text_content` from segments, persist SourceDoc, run `extract_facts_from_markdown`, save facts, complete job.
 
-## What Changed (Implementation Checklist)
+---
 
-| Item | File | Change |
-|------|------|--------|
-| Fallback message (worker) | `apps/backend/app/workers/ingest_task.py` | Set `error_message` for TRANSCRIPT_DISABLED to **"Captions not available — upload audio file"** (single place where real failed jobs get this message). |
-| E2E seed message | `apps/backend/app/api/test_helpers.py` | For `transcript_disabled` mode, set `err_msg` to **"Captions not available — upload audio file"** so e2e sees same copy. |
-| UI label (optional) | `apps/web/src/components/ProcessingTimeline.tsx` | In `errorCodeLabel`, map `TRANSCRIPT_DISABLED` to **"Captions not available"** so the short label matches the message. |
-| Unit test | `apps/backend/tests/test_extractors_youtube.py` (new) | Test `extract_youtube`: (1) mock `YouTubeTranscriptApi.get_transcript` returning segments → assert transcript and title; (2) mock raising / returning empty → assert transcript empty, no exception. |
+## 2) Error contract for captions unavailable
 
-No changes to: `ingest.py` (API), `models.py`, `extractors/youtube.py` (logic), or frontend intake form beyond the optional label.
+- **Code:** `CAPTIONS_UNAVAILABLE`.
+- **Where:** `job.result_summary.error_code` and `job.result_summary.error_message` when `job.status === "FAILED"`.
+- **Message:** `"Captions not available — upload audio file"` (or equivalent; keep short and actionable).
+- **When:** (1) Worker explicitly: YOUTUBE and `extract()` returns empty `transcript`. (2) Worker exception path: exception from YouTube/transcript path mapped to `CAPTIONS_UNAVAILABLE` so client never sees a generic 500 for this case.
+- **API:** No new HTTP status or endpoint. Client polls job; on `status: "FAILED"` and `result_summary.error_code === "CAPTIONS_UNAVAILABLE"`, UI shows the fallback (see below).
 
-## Test Plan
+---
 
-**Strategy: CI does not hit YouTube live.** Use a small transcript fetcher interface (mockable); unit tests use fixtures; optional manual smoke with real URLs locally.
+## 3) Test plan (fixtures-based)
 
-1. **Backend transcript fetcher interface (tiny):** A callable `(video_id: str) -> list[dict] | None`. Default implementation calls `youtube-transcript-api`; tests inject a mock that returns fixture data or `None` (CAPTIONS_UNAVAILABLE).
-2. **Unit tests with fixtures:** "With captions" mock returns segment list; "without captions" mock returns `None`. No live network.
-3. **Optional manual smoke:** Run locally with golden URLs when needed.
+- **Extractor tests (existing):** `tests/test_extractors_youtube.py` already uses `tests.fixtures.youtube` (`load_fixture`, `segments_for_fetcher`) and a mock `transcript_fetcher`; no network. Keep as-is; ensure fixture IDs match: with captions `6MBq1paspVU`, without `HpMPhOtT3Ow`.
 
-- **Backend unit:** `tests/test_extractors_youtube.py`: use fetcher mock; fixtures for with/without captions; assert transcript populated vs empty; canonical URL (no `?si=`). Run: `pytest apps/backend/tests/test_extractors_youtube.py -v`.
-- **E2E:** Use existing `source-failure-modes.spec.ts`: seed includes YouTube `transcript_disabled`; assert timeline shows failed job with error code and message. After backend copy change, optionally assert message text contains “Captions not available” and “upload audio file”. Run: `ARTIFACT_ENABLE_TEST_SEED=true npx playwright test apps/web/tests/e2e/source-failure-modes.spec.ts`.
+- **Worker tests (new):** Add CI-safe unit tests for the ingest worker YouTube path.
+  - **Location:** e.g. `tests/test_ingest_task_youtube.py` or a dedicated section in an existing ingest worker test file if present.
+  - **Approach:** Patch `extract` (or `app.extractors.youtube.extract_youtube`) so it returns fixture-driven data:
+    - **With captions:** Patch so `extract(url, YOUTUBE)` returns a dict with `title`, `transcript` (list of segments, e.g. from `segments_for_fetcher(load_fixture("6MBq1paspVU"))` converted to worker-expected shape `[{start_s, end_s, text}]`), `video_url`. Assert: job completes successfully, SourceDoc created, facts extracted (or at least one fact), `result_summary.source_type === "YOUTUBE"`.
+    - **Without captions:** Patch so `extract(url, YOUTUBE)` returns `transcript: []` (and optionally `title`, `video_url`). Assert: job status FAILED, `result_summary.error_code === "CAPTIONS_UNAVAILABLE"`, `result_summary.error_message` contains “upload audio” or equivalent.
+  - **No network:** All external calls (YouTube API, oEmbed, etc.) must be mocked/patched; use only in-memory fixture data.
 
-## Acceptance Criteria (deterministic)
+- **Fixtures:** Use existing `tests/fixtures/youtube/6MBq1paspVU.json` and `HpMPhOtT3Ow.json`. Helper can convert fixture segments to the format the worker expects (`start_s`, `end_s`, `text`) if not already identical.
 
-- [x] YouTube URL with captions produces facts (existing behavior).
-- [x] YouTube URL without captions produces a clear fallback message and does not create a SourceDoc or leave a broken job (existing behavior; copy updated).
-- [x] No audio downloading is introduced (confirmed: only youtube-transcript-api).
-- [ ] Unit test for YouTube extractor added; e2e (source-failure-modes) still passes.
+---
 
-**Test URLs (golden):**
+## 4) Minimal UI change plan
 
-- **Captions available:** https://www.youtube.com/watch?v=6MBq1paspVU  
-  Expected: transcript fetched (captions-only), stored, facts extracted.
-- **Captions unavailable:** https://www.youtube.com/watch?v=HpMPhOtT3Ow  
-  Expected: no transcript fetched; UI returns a clear message: "Captions not available — upload audio file"; no broken ingestion job queued.
+- **ProcessingTimeline (`apps/web/src/components/ProcessingTimeline.tsx`):**
+  - In `errorCodeLabel`, add `CAPTIONS_UNAVAILABLE: "Captions not available"` (and keep `TRANSCRIPT_DISABLED` if still used elsewhere).
+  - When `job.result_summary?.error_code === "CAPTIONS_UNAVAILABLE"` (or `TRANSCRIPT_DISABLED`), show a short fallback line below the error message, e.g. **“Upload the audio file to add this source.”** (or a link to the file upload area if there is a clear target). Prefer a single line to stay within “minimal” scope.
 
-**URL normalization (reduce flakiness):** In code and tests, normalize to canonical form (drop `?si=...`): use `https://www.youtube.com/watch?v={video_id}` only.
+- **SourceTracker:** Already shows `job.result_summary?.error_message` on failed jobs (tooltip/title). No change required unless we want the same one-line fallback in the tracker; optional.
 
-## Commands to Run
+- **api.ts:** Ensure `Job.result_summary` type includes `error_code` and `error_message` (already present). No API contract change.
 
-```bash
-# Backend unit (new test)
-cd apps/backend && pytest tests/test_extractors_youtube.py -v
+- **Intake page:** No new modal or separate “captions unavailable” page; the failed job row in ProcessingTimeline (and optionally in SourceTracker) is the place for the message and “upload audio” fallback.
 
-# E2E (existing)
-ARTIFACT_ENABLE_TEST_SEED=true npx playwright test apps/web/tests/e2e/source-failure-modes.spec.ts
-```
+---
 
-## Files Touched (Target)
+## How to run / verify
 
-| File | Action |
-|------|--------|
-| `apps/backend/app/workers/ingest_task.py` | Edit: 1 line (error_message string). |
-| `apps/backend/app/api/test_helpers.py` | Edit: 1 line (err_msg for transcript_disabled). |
-| `apps/web/src/components/ProcessingTimeline.tsx` | Edit: 1 line (TRANSCRIPT_DISABLED label). |
-| `apps/backend/app/extractors/youtube.py` | Add `TranscriptFetcher` type + `_default_transcript_fetcher`; `extract_youtube(url, transcript_fetcher=None)` for mockable fetcher. |
-| `apps/backend/tests/test_extractors_youtube.py` | New: unit tests with fixtures (with/without captions); URL normalization (no `?si=`). |
+- **Backend tests (CI-safe):**  
+  `cd apps/backend && PYTHONPATH=. pytest tests/test_extractors_youtube.py tests/test_ingest_task_youtube.py -q`  
+  (or the chosen test module name)
+- **Web typecheck:**  
+  `cd apps/web && npm run typecheck`
+- **Manual smoke (out of scope for CI):**  
+  - With captions: `https://www.youtube.com/watch?v=6MBq1paspVU` → transcript stored, facts extracted.  
+  - Without captions: `https://www.youtube.com/watch?v=HpMPhOtT3Ow` → job FAILED, `CAPTIONS_UNAVAILABLE`, UI shows “upload audio” fallback.
 
-Total well under 300 LOC and 6 files. If scope grows (e.g. more extractor tests or docs), implement Slice 1.5a: copy + label + single unit test only; defer extra e2e assertions.
+---
+
+## Files touched (estimate)
+
+| Area        | File(s) |
+|------------|---------|
+| Backend    | `app/workers/ingest_task.py` (error code + exception mapping) |
+| Backend    | `tests/test_ingest_task_youtube.py` (new) or extend existing ingest test |
+| Web        | `apps/web/src/components/ProcessingTimeline.tsx` (error label + fallback line) |
+| Docs       | `docs/features/krisp-v1.5-youtube-captions-plan.md` (this file) |
+
+Total: ~4 files; well under 300 LOC and 8 files. No change to API ingest.py, extractors, or models unless we add a constant for the error code in a shared place (optional).
+
+---
 
 ## Links
 
-- [[_index]]
+- [[docs/_index]]
+- Existing YouTube extractor: `apps/backend/app/extractors/youtube.py`
+- Existing YouTube fixtures: `apps/backend/tests/fixtures/youtube/`
 - Ingest API: `apps/backend/app/api/ingest.py`
 - Ingest worker: `apps/backend/app/workers/ingest_task.py`
-- YouTube extractor: `apps/backend/app/extractors/youtube.py`
-- Processing timeline: `apps/web/src/components/ProcessingTimeline.tsx`
