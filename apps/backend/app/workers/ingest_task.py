@@ -368,7 +368,7 @@ def ingest_url_task(self, job_id: str | uuid.UUID, url: str) -> None:
                         _set_job_failed(
                             job,
                             "TRANSCRIPT_DISABLED",
-                            "Captions are not available. Upload an audio file instead.",
+                            "Captions not available — upload audio file",
                             {"source_title": page_title, "source_type": source_type.value},
                         )
                         db.add(job)

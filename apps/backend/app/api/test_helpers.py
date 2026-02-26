@@ -706,7 +706,7 @@ def seed_sources(payload: SeedSourcesRequest, db: Session = Depends(get_session)
             elif kind == "youtube" and mode != "ok":
                 video_url = "https://www.youtube.com/watch?v=e2e_demo_yt"
                 err_code = "TRANSCRIPT_DISABLED" if mode == "transcript_disabled" else "PAYWALL" if mode == "paywall" else "EMPTY_CONTENT"
-                err_msg = "Transcript is disabled for this video" if mode == "transcript_disabled" else "Demo paywall" if mode == "paywall" else "No content extracted"
+                err_msg = "Captions not available — upload audio file" if mode == "transcript_disabled" else "Demo paywall" if mode == "paywall" else "No content extracted"
                 jid = uuid4()
                 job = Job(
                     id=jid,

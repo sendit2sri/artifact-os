@@ -53,7 +53,7 @@ function errorCodeLabel(code: string): string {
         PAYWALL: "Paywall / blocked",
         UNSUPPORTED: "Unsupported",
         EMPTY_CONTENT: "Empty content",
-        TRANSCRIPT_DISABLED: "Transcript disabled",
+        TRANSCRIPT_DISABLED: "Captions not available",
     };
     return labels[code] ?? code;
 }

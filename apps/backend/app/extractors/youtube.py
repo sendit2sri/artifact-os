@@ -1,15 +1,32 @@
 """
 YouTube transcript extraction: title, channel, segments (start_s, end_s, text), video_url.
-Uses youtube-transcript-api when available (no API key).
+Uses youtube-transcript-api when available (no API key). Captions-only; no audio download.
 """
-from typing import Dict, Any
+from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse, parse_qs
 
+# Fetcher: (video_id: str) -> raw segment list or None (captions unavailable). Mockable for tests.
+TranscriptFetcher = Callable[[str], Optional[List[Dict[str, Any]]]]
 
-def extract_youtube(url: str) -> Dict[str, Any]:
+
+def _default_transcript_fetcher(video_id: str) -> Optional[List[Dict[str, Any]]]:
+    """Fetch transcript via youtube-transcript-api. Returns None if captions unavailable."""
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        return YouTubeTranscriptApi.get_transcript(video_id)
+    except Exception as e:
+        print(f"⚠️ YouTube transcript failed: {e}")
+        return None
+
+
+def extract_youtube(
+    url: str,
+    transcript_fetcher: Optional[TranscriptFetcher] = None,
+) -> Dict[str, Any]:
     """
-    Fetch transcript and video metadata.
+    Fetch transcript and video metadata (captions-only).
     Returns: title, channel, transcript[] (start_s, end_s, text), video_url.
+    URL is normalized to canonical form (no ?si= etc). Inject transcript_fetcher in tests to avoid live calls.
     """
     result: Dict[str, Any] = {
         "title": "",
@@ -21,11 +38,9 @@ def extract_youtube(url: str) -> Dict[str, Any]:
     if not video_id:
         return result
 
-    try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-    except Exception as e:
-        print(f"⚠️ YouTube transcript failed: {e}")
+    fetcher = transcript_fetcher or _default_transcript_fetcher
+    transcript_list = fetcher(video_id)
+    if transcript_list is None or len(transcript_list) == 0:
         return result
 
     segments = []
