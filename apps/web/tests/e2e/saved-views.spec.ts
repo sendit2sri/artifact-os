@@ -5,7 +5,7 @@
 
 import { test, expect } from './fixtures/seed';
 import { gotoProject, switchToAllDataView } from './helpers/nav';
-import { closeOverlays } from './helpers/ui';
+import { closeOverlays, ensureFactsControlsOpen } from './helpers/ui';
 
 test.describe('Saved Views', () => {
   test.beforeEach(async ({ page, seed }) => {
@@ -18,6 +18,7 @@ test.describe('Saved Views', () => {
   }) => {
     await switchToAllDataView(page);
     await closeOverlays(page);
+    await ensureFactsControlsOpen(page);
     const sortTrigger = page.getByTestId('facts-sort-trigger');
     await expect(sortTrigger).toBeVisible({ timeout: 5000 });
     await sortTrigger.click();
@@ -62,6 +63,7 @@ test.describe('Saved Views', () => {
   }) => {
     await switchToAllDataView(page);
     await closeOverlays(page);
+    await ensureFactsControlsOpen(page);
     await page.getByTestId('facts-sort-trigger').click();
     await page.getByTestId('facts-sort-option-needs_review').click();
     await page.getByTestId('views-trigger').click();
@@ -77,6 +79,7 @@ test.describe('Saved Views', () => {
     await page.getByTestId('views-trigger').click();
 
     await page.goto(`/project/${seed.project_id}`, { waitUntil: 'domcontentloaded' });
+    await ensureFactsControlsOpen(page);
     await expect(async () => {
       await expect(page.getByTestId('facts-sort-trigger')).toContainText(/needs review/i);
     }).toPass({ timeout: 15_000 });

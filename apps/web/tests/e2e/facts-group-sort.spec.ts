@@ -6,6 +6,7 @@
 
 import { test, expect } from './fixtures/seed';
 import { gotoProject, switchToAllDataView } from './helpers/nav';
+import { ensureFactsControlsOpen } from './helpers/ui';
 
 test.describe('Facts sort and group', () => {
   test.beforeEach(async ({ page, seed }) => {
@@ -16,6 +17,7 @@ test.describe('Facts sort and group', () => {
     page,
   }) => {
     await switchToAllDataView(page);
+    await ensureFactsControlsOpen(page);
     const sortTrigger = page.getByTestId('facts-sort-trigger');
     await expect(sortTrigger).toBeVisible({ timeout: 5000 });
     await sortTrigger.click();
@@ -32,6 +34,7 @@ test.describe('Facts sort and group', () => {
   test('enable Group by Source: group sections appear with correct domains', async ({
     page,
   }) => {
+    await ensureFactsControlsOpen(page);
     const groupTrigger = page.getByTestId('facts-group-trigger');
     await expect(groupTrigger).toBeVisible({ timeout: 5000 });
     await groupTrigger.click();

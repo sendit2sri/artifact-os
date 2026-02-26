@@ -7,6 +7,7 @@
 import { test, expect } from "./fixtures/seed";
 import { waitForAppIdle } from "./helpers/synthesis";
 import { gotoProject } from "./helpers/nav";
+import { ensureFactsControlsOpen } from "./helpers/ui";
 
 test.describe("Canary - Critical Path @release-gate", () => {
   test.beforeEach(async ({ page, seed }) => {
@@ -93,6 +94,7 @@ test.describe("Canary - Critical Path @release-gate", () => {
 
     await page.goto(`/project/${projectId}`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
     // Track router.replace / navigations
     const navUrls: string[] = [];
@@ -190,6 +192,7 @@ test.describe("Canary - UI-detail heavy @nightly", () => {
     const projectId = seed.project_id;
     await page.goto(`/project/${projectId}`);
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
 
     const savePref = page.waitForResponse(
       async (r) => {
@@ -216,6 +219,7 @@ test.describe("Canary - UI-detail heavy @nightly", () => {
 
     await page.reload();
     await waitForAppIdle(page);
+    await ensureFactsControlsOpen(page);
     await expect(sortTrigger).toContainText(/Newest first/i);
   });
 });

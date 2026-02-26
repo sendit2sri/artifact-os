@@ -4,6 +4,7 @@
 
 import { test, expect } from './fixtures/seed';
 import { gotoProject, switchToAllDataView } from './helpers/nav';
+import { ensureFactsControlsOpen } from './helpers/ui';
 
 test.describe('Selected only', () => {
   test.beforeEach(async ({ page, seed }) => {
@@ -14,6 +15,7 @@ test.describe('Selected only', () => {
     page,
   }) => {
     await switchToAllDataView(page);
+    await ensureFactsControlsOpen(page);
     const card1 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-1]' });
     const card2 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-2]' });
     const card3 = page.getByTestId('fact-card').filter({ hasText: '[E2E:APPROVED-3]' });
