@@ -25,7 +25,7 @@ export interface FactsControlsSheetProps {
     setViewsOpen: (v: boolean) => void;
     scopeType: "DOMAIN" | "URL" | null;
     scopeValue: string | null;
-    viewMode: "key" | "all" | "pinned";
+    viewMode: "key" | "all" | "pinned" | "graph";
     reviewStatusFilter: string | null;
     searchQuery: string;
     onApplyViewState: (state: SavedViewState) => void;
