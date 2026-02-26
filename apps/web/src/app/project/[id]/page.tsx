@@ -48,6 +48,7 @@ import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import { AddSourceSheet } from "@/components/AddSourceSheet";
 import { SourcesDrawer } from "@/components/SourcesDrawer";
 import { FactsControlsSheet } from "@/components/FactsControlsSheet";
+import { FactsGraphView } from "@/components/FactsGraphView";
 
 const getDomain = (u: string) => {
     try { return new URL(u).hostname.replace(/^www\./, ""); }
@@ -78,7 +79,7 @@ function evidenceMapFactToFact(em: OutputEvidenceMapFact): Fact {
 /** Parse view state from URL params */
 function parseViewStateFromUrl(params: URLSearchParams) {
     const allowedSort = new Set(["confidence", "key-first", "newest", "needs_review"]);
-    const allowedView = new Set(["key", "all", "pinned"]);
+    const allowedView = new Set(["key", "all", "pinned", "graph"]);
     
     const sortParam = params.get("sort");
     const viewParam = params.get("view");
@@ -90,7 +91,7 @@ function parseViewStateFromUrl(params: URLSearchParams) {
         sortBy: (sortParam && allowedSort.has(sortParam) ? sortParam : null) as "confidence" | "key-first" | "newest" | "needs_review" | null,
         reviewStatusFilter: params.get("review_status"),
         groupBySource: params.get("group") === "source",
-        viewMode: (viewParam && allowedView.has(viewParam) ? viewParam : "key") as "key" | "all" | "pinned",
+        viewMode: (viewParam && allowedView.has(viewParam) ? viewParam : "key") as "key" | "all" | "pinned" | "graph",
         showOnlySelected: params.get("show_selected") === "1",
     };
 }
@@ -147,7 +148,8 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     // State declarations (with proper nullish defaults)
     const [scopeType, setScopeType] = useState<"DOMAIN" | "URL" | null>(initialState.scopeType);
     const [scopeValue, setScopeValue] = useState<string | null>(initialState.scopeValue);
-    const [viewMode, setViewMode] = useState<"key" | "all" | "pinned">(initialState.viewMode);
+    const [viewMode, setViewMode] = useState<"key" | "all" | "pinned" | "graph">(initialState.viewMode);
+    const [graphSelectedGroupId, setGraphSelectedGroupId] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<"confidence" | "key-first" | "newest" | "needs_review">(
         initialState.sortBy ?? "needs_review"
     );
@@ -256,6 +258,10 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         urlHydratedRef.current = true;
         isHydratingRef.current = false;
     }, [sp]);
+
+    useEffect(() => {
+        if (viewMode !== "graph") setGraphSelectedGroupId(null);
+    }, [viewMode]);
 
     // focusMode is OK in localStorage (ephemeral preference)
     useEffect(() => {
@@ -500,7 +506,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             filter.order = "desc";
         }
         filter.show_suppressed = showSuppressed;
-        if (collapseSimilar) {
+        if (collapseSimilar || viewMode === "graph") {
             filter.group_similar = 1;
             filter.min_sim = collapseSimilarMinSim;
         }
@@ -1284,8 +1290,12 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         if (showOnlySelected && selectedFacts.size > 0) {
             list = list.filter((f) => selectedFacts.has(f.id));
         }
+        if (viewMode === "graph" && graphSelectedGroupId && factsGroups[graphSelectedGroupId]) {
+            const ids = new Set(factsGroups[graphSelectedGroupId].collapsed_ids);
+            list = list.filter((f) => ids.has(f.id));
+        }
         return list;
-    }, [scopedFacts, searchQuery, showOnlySelected, selectedFacts]);
+    }, [scopedFacts, searchQuery, showOnlySelected, selectedFacts, viewMode, graphSelectedGroupId, factsGroups]);
 
     // Capture evidence navigation snapshot when evidence panel opens (P1 fix for prev/next stability)
     // When viewingFact changes from null -> fact, snapshot current visibleFacts IDs
@@ -1897,7 +1907,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                 <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
                                     {/* Left: Tabs (Key / All / Pinned) + on < md: Search + Controls button */}
                                     <div className="flex flex-wrap items-center gap-2 min-w-0">
-                                        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "key" | "all" | "pinned")}>
+                                        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "key" | "all" | "pinned" | "graph")}>
                                             <TabsList className="h-9 w-fit bg-muted p-1 rounded-full">
                                                 <TabsTrigger 
                                                     value="key" 
@@ -1927,6 +1937,13 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                                     <Badge variant="secondary" className="ml-2 h-4 px-1.5 text-[10px] bg-muted text-muted-foreground border-0">
                                                         {counts.pinned}
                                                     </Badge>
+                                                </TabsTrigger>
+                                                <TabsTrigger 
+                                                    value="graph" 
+                                                    data-testid="view-tab-graph"
+                                                    className="text-xs font-medium px-4 rounded-full data-[state=active]:bg-surface data-[state=active]:text-foreground data-[state=active]:shadow-xs text-muted-foreground transition-all"
+                                                >
+                                                    Graph
                                                 </TabsTrigger>
                                             </TabsList>
                                         </Tabs>
@@ -2110,6 +2127,17 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                             )}
 
                             <div className="pb-24">
+                                {viewMode === "graph" && scopeType !== "DOMAIN" && (
+                                    <div className="mb-4">
+                                        <FactsGraphView
+                                            groups={factsGroups}
+                                            facts={facts ?? []}
+                                            selectedGroupId={graphSelectedGroupId}
+                                            onNodeClick={setGraphSelectedGroupId}
+                                            onClearSelection={() => setGraphSelectedGroupId(null)}
+                                        />
+                                    </div>
+                                )}
                                 {scopeType !== "DOMAIN" ? (
                                     isLoading || (visibleFacts.length === 0 && isProcessing) ? (
                                         <div className="space-y-4">

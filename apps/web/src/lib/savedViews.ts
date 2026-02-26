@@ -5,7 +5,7 @@
  */
 
 export type ViewScopeType = "DOMAIN" | "URL" | null;
-export type ViewMode = "key" | "all" | "pinned";
+export type ViewMode = "key" | "all" | "pinned" | "graph";
 export type SortBy = "needs_review" | "key-first" | "confidence" | "newest";
 
 export interface SavedViewState {
