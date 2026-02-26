@@ -115,7 +115,7 @@ export function AddSourceSheet({
                             <label className="text-xs font-medium text-muted-foreground">File</label>
                             <Input
                                 type="file"
-                                accept=".pdf,.txt,.md"
+                                accept=".pdf,.txt,.md,.mp3,.wav,.m4a,.webm,.ogg,.mp4,.m4v,.mov"
                                 onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
                                 className="h-9 text-sm bg-muted/30 border-border/80 file:text-foreground focus-visible:ring-2 focus-visible:ring-ring/30"
                             />

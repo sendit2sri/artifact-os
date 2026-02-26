@@ -37,6 +37,7 @@ class SourceType(str, Enum):
     WEB = "WEB"
     REDDIT = "REDDIT"
     YOUTUBE = "YOUTUBE"
+    MEDIA = "MEDIA"  # uploaded audio/video
 
 # --- Tables ---
 
@@ -170,6 +171,17 @@ class Job(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     project: Optional[Project] = Relationship(back_populates="jobs")
+
+class IngestRule(SQLModel, table=True):
+    """Auto-ingest rules (V4): folder_watch, rss_ingest, scheduled_url. Worker picks up in V4b."""
+    __tablename__ = "ingest_rules"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="projects.id", index=True)
+    type: str = Field(index=True)  # folder_watch | rss_ingest | scheduled_url
+    config_json: Dict[str, Any] = Field(default_factory=dict, sa_type=JSON)
+    enabled: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class UserPreference(SQLModel, table=True):
     """Server-backed user preferences per workspace/project (key-value JSON)."""
