@@ -230,7 +230,7 @@ JOB_STEP_FACTING = "FACTING"
 JOB_STEP_DONE = "DONE"
 JOB_STEP_FAILED = "FAILED"
 
-ERROR_CODES = ("NETWORK", "RATE_LIMIT", "PAYWALL", "UNSUPPORTED", "EMPTY_CONTENT", "TRANSCRIPT_DISABLED", "TRANSCRIPT_FAILED")
+ERROR_CODES = ("NETWORK", "RATE_LIMIT", "PAYWALL", "UNSUPPORTED", "EMPTY_CONTENT", "CAPTIONS_UNAVAILABLE", "TRANSCRIPT_DISABLED", "TRANSCRIPT_FAILED")
 
 def _set_job_failed(job, error_code: str, error_message: str, result_summary: Optional[dict] = None):
     job.status = JobStatus.FAILED
@@ -367,8 +367,8 @@ def ingest_url_task(self, job_id: str | uuid.UUID, url: str) -> None:
                     if not transcript:
                         _set_job_failed(
                             job,
-                            "TRANSCRIPT_DISABLED",
-                            "Captions are not available. Upload an audio file instead.",
+                            "CAPTIONS_UNAVAILABLE",
+                            "Captions not available — upload audio file",
                             {"source_title": page_title, "source_type": source_type.value},
                         )
                         db.add(job)
@@ -523,8 +523,8 @@ def ingest_url_task(self, job_id: str | uuid.UUID, url: str) -> None:
                 error_code = "PAYWALL"
             elif "timeout" in err_msg or "connection" in err_msg or "refused" in err_msg:
                 error_code = "NETWORK"
-            elif "transcript" in err_msg or "disabled" in err_msg or "not available" in err_msg:
-                error_code = "TRANSCRIPT_DISABLED"
+            elif "transcript" in err_msg or "captions" in err_msg or "disabled" in err_msg or "not available" in err_msg:
+                error_code = "CAPTIONS_UNAVAILABLE"
             user_message = str(e)
             if len(user_message) > 120:
                 user_message = user_message[:117] + "..."

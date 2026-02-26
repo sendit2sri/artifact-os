@@ -53,9 +53,14 @@ function errorCodeLabel(code: string): string {
         PAYWALL: "Paywall / blocked",
         UNSUPPORTED: "Unsupported",
         EMPTY_CONTENT: "Empty content",
-        TRANSCRIPT_DISABLED: "Transcript disabled",
+        CAPTIONS_UNAVAILABLE: "Captions not available",
+        TRANSCRIPT_DISABLED: "Captions not available",
     };
     return labels[code] ?? code;
+}
+
+function isCaptionsUnavailable(code: string | undefined): boolean {
+    return code === "CAPTIONS_UNAVAILABLE" || code === "TRANSCRIPT_DISABLED";
 }
 
 interface ProcessingTimelineProps {
@@ -230,6 +235,11 @@ export function ProcessingTimeline({ jobs, onRetry }: ProcessingTimelineProps) {
                                             job.error_message ??
                                             "Processing failed"}
                                     </span>
+                                    {isCaptionsUnavailable(job.result_summary?.error_code) && (
+                                        <span className="text-muted-foreground text-xs block">
+                                            Upload the audio file to add this source.
+                                        </span>
+                                    )}
                                 </div>
                                 <span data-testid="processing-retry">
                                     <Button
