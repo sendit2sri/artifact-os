@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures/seed';
-import { gotoProject, switchToAllDataView } from './helpers/nav';
+import { gotoProject, switchToAllDataView, ensureFactsControlsOpen } from './helpers/nav';
 import type { Page } from '@playwright/test';
 
 /** Open Buckets panel via toolbar button or, if missing, via Filters sheet (stable in all layouts). */
@@ -10,9 +10,7 @@ async function openBucketsPanel(page: Page): Promise<void> {
     await toolbarBtn.scrollIntoViewIfNeeded();
     await toolbarBtn.click({ timeout: 5000 });
   } else {
-    await page.getByTestId('facts-controls-open').click({ timeout: 5000 });
-    await expect(page.getByTestId('facts-controls-sheet')).toBeVisible({ timeout: 5000 });
-    await page.waitForTimeout(200);
+    await ensureFactsControlsOpen(page);
     await page.getByTestId('buckets-panel-open').click({ timeout: 5000 });
   }
   await expect(page.getByTestId('buckets-panel')).toBeVisible({ timeout: 5000 });
@@ -31,7 +29,9 @@ test.describe('Buckets V2a @release-gate', () => {
   test('bucket generate shows Angle label in output drawer', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await expect(page.getByTestId('fact-card').first()).toBeVisible({ timeout: 10_000 });
+    // Wait for facts to render (seed creates facts, but UI may take time to hydrate)
+    await expect(page.getByTestId('facts-list')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('fact-card').first()).toBeVisible({ timeout: 30_000 });
 
     await openBucketsPanel(page);
     await page.getByTestId('buckets-add-name').fill('Angle 1');
@@ -40,6 +40,9 @@ test.describe('Buckets V2a @release-gate', () => {
     // Close panel so fact list is clickable
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('buckets-panel')).toBeHidden({ timeout: 3000 });
+
+    // Ensure list is present and has at least one card after closing overlays
+    await expect(page.getByTestId('fact-card').first()).toBeVisible({ timeout: 30_000 });
 
     // Add two facts to bucket via "Add to bucket" dropdown (seed has ≥2 facts)
     const cards = page.getByTestId('fact-card');
