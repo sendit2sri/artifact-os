@@ -790,7 +790,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         }
     });
 
-    const showQueryTab = true;
+    const showQueryTab = process.env.NEXT_PUBLIC_SCIRA_QUERY_INGEST_ENABLED === "true";
     const queryIngestMutation = useMutation({
         mutationFn: () => ingestQuery(projectId, workspaceId, { query: queryInput.trim(), max_urls: 5 }),
         onMutate: () => setQueryError(null),
@@ -812,9 +812,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             }
         },
         onError: (error: Error) => {
-            const raw = error.message || "Query search failed.";
-            const is403 = /not enabled|query search is not enabled/i.test(raw);
-            const msg = is403 ? "Scira is disabled on this environment." : raw;
+            const msg = error.message || "Query search failed.";
             setQueryError(msg);
             toast.error(msg);
         },
