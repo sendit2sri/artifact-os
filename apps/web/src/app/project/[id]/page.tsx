@@ -790,7 +790,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         }
     });
 
-    const showQueryTab = process.env.NEXT_PUBLIC_SCIRA_QUERY_INGEST_ENABLED === "true";
+    const showQueryTab = true;
     const queryIngestMutation = useMutation({
         mutationFn: () => ingestQuery(projectId, workspaceId, { query: queryInput.trim(), max_urls: 5 }),
         onMutate: () => setQueryError(null),
@@ -812,7 +812,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             }
         },
         onError: (error: Error) => {
-            const msg = error.message || "Query search failed.";
+            const raw = error.message || "Query search failed.";
+            const is403 = /not enabled|query search is not enabled/i.test(raw);
+            const msg = is403 ? "Scira is disabled on this environment." : raw;
             setQueryError(msg);
             toast.error(msg);
         },
@@ -2494,6 +2496,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 onOpenChange={setShowExportPanel}
                 projectId={projectId}
                 lastOutputId={lastOutputSummary?.id ?? null}
+                factsCount={facts?.length ?? 0}
+                sourcesCount={sources?.length ?? 0}
+                outputsCount={outputsList?.length ?? 0}
             />
 
             <SourceHealthPanel

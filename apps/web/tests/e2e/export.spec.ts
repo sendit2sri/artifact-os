@@ -47,6 +47,16 @@ test.describe('Export', () => {
     expect(text).toMatch(/Sources:|Mode:|example\.com|Global temperatures|Arctic|Ocean/);
   });
 
+  test('Export Markdown then Copy shows success feedback', async ({ page, seed }) => {
+    await page.getByTestId('export-button').click();
+    await expect(page.getByTestId('export-panel')).toBeVisible();
+    await page.getByTestId('export-option-markdown').click();
+    await expect(page.getByTestId('export-success')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByTestId('export-copy')).toBeVisible();
+    await page.getByTestId('export-copy').click();
+    await expect(page.getByText(/copied to clipboard/i)).toBeVisible({ timeout: 3000 });
+  });
+
   test('Export error + retry', async ({ page }) => {
     await page.getByTestId('export-button').click();
 

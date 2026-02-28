@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Loader2, Download, X, CheckCircle2, AlertTriangle, FileText } from "lucide-react";
+import { Loader2, Download, Copy, CheckCircle2, AlertTriangle, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { exportProject, ExportFormat, fetchOutput } from "@/lib/api";
 
 interface ExportPanelProps {
@@ -12,14 +13,19 @@ interface ExportPanelProps {
   projectId: string;
   /** When set, enables "Export last output (Markdown)" quick action */
   lastOutputId?: string | null;
+  /** Optional counts for "What's included" summary */
+  factsCount?: number;
+  sourcesCount?: number;
+  outputsCount?: number;
 }
 
-export function ExportPanel({ open, onOpenChange, projectId, lastOutputId }: ExportPanelProps) {
+export function ExportPanel({ open, onOpenChange, projectId, lastOutputId, factsCount, sourcesCount, outputsCount }: ExportPanelProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [filename, setFilename] = useState<string | null>(null);
+  const [exportedContent, setExportedContent] = useState<string | null>(null);
   const [lastFormat, setLastFormat] = useState<ExportFormat | null>(null);
   const [lastOutputLoading, setLastOutputLoading] = useState(false);
 
@@ -31,6 +37,7 @@ export function ExportPanel({ open, onOpenChange, projectId, lastOutputId }: Exp
       setBlobUrl(null);
     }
     setFilename(null);
+    setExportedContent(null);
     setLastFormat(null);
   };
 
@@ -54,6 +61,7 @@ export function ExportPanel({ open, onOpenChange, projectId, lastOutputId }: Exp
       const url = URL.createObjectURL(blob);
       setBlobUrl(url);
       setFilename(result.filename);
+      setExportedContent(result.content);
       setSuccess(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Export failed");
@@ -88,6 +96,21 @@ export function ExportPanel({ open, onOpenChange, projectId, lastOutputId }: Exp
 
   const hasQuickActions = !!lastOutputId;
   const quickDisabled = !lastOutputId;
+  const hasCounts = factsCount !== undefined || sourcesCount !== undefined || outputsCount !== undefined;
+  const summaryParts: string[] = [];
+  if (factsCount !== undefined) summaryParts.push(`${factsCount} fact${factsCount !== 1 ? "s" : ""}`);
+  if (sourcesCount !== undefined) summaryParts.push(`${sourcesCount} source${sourcesCount !== 1 ? "s" : ""}`);
+  if (outputsCount !== undefined) summaryParts.push(`${outputsCount} output${outputsCount !== 1 ? "s" : ""}`);
+
+  const handleCopy = async () => {
+    if (!exportedContent) return;
+    try {
+      await navigator.clipboard.writeText(exportedContent);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Copy failed");
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && handleClose()}>
@@ -99,6 +122,12 @@ export function ExportPanel({ open, onOpenChange, projectId, lastOutputId }: Exp
       >
         <div className="space-y-4">
           <h3 className="font-semibold text-foreground">Export</h3>
+
+          {hasCounts && summaryParts.length > 0 && (
+            <p data-testid="export-whats-included" className="text-xs text-muted-foreground">
+              What&apos;s included: {summaryParts.join(", ")}
+            </p>
+          )}
 
           {(filename || hasQuickActions) && (
             <p data-testid="export-filename-preview" className="text-xs text-muted-foreground truncate">
@@ -164,6 +193,24 @@ export function ExportPanel({ open, onOpenChange, projectId, lastOutputId }: Exp
                 Markdown
               </Button>
               <Button
+                data-testid="export-facts-md-evidence"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => handleExport("markdown_evidence")}
+                disabled={loading}
+              >
+                Markdown (with evidence)
+              </Button>
+              <Button
+                data-testid="export-option-json"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => handleExport("json")}
+                disabled={loading}
+              >
+                JSON
+              </Button>
+              <Button
                 data-testid="export-option-csv"
                 variant="outline"
                 className="w-full justify-start"
@@ -179,25 +226,7 @@ export function ExportPanel({ open, onOpenChange, projectId, lastOutputId }: Exp
                 onClick={() => handleExport("csv_evidence")}
                 disabled={loading}
               >
-                Facts CSV (with evidence)
-              </Button>
-              <Button
-                data-testid="export-facts-md-evidence"
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => handleExport("markdown_evidence")}
-                disabled={loading}
-              >
-                Facts Markdown (with evidence)
-              </Button>
-              <Button
-                data-testid="export-option-json"
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => handleExport("json")}
-                disabled={loading}
-              >
-                JSON
+                CSV (with evidence)
               </Button>
             </div>
           </div>
@@ -211,15 +240,28 @@ export function ExportPanel({ open, onOpenChange, projectId, lastOutputId }: Exp
                 <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                 Export ready
               </div>
-              <a
-                data-testid="export-download"
-                href={blobUrl}
-                download={filename}
-                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-              >
-                <Download className="w-4 h-4" />
-                Download {filename}
-              </a>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  data-testid="export-copy"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handleCopy}
+                  disabled={!exportedContent}
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy
+                </Button>
+                <a
+                  data-testid="export-download"
+                  href={blobUrl}
+                  download={filename}
+                  className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </a>
+              </div>
             </div>
           )}
 
