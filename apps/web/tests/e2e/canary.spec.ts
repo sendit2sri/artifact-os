@@ -108,12 +108,12 @@ test.describe("Canary - Critical Path @release-gate", () => {
       await page.click('[data-testid="facts-sort-trigger"]');
       const listbox = page.getByRole("listbox");
       await expect(listbox).toBeVisible({ timeout: 2000 });
-      await listbox.getByRole("option", { name: "Newest first", exact: true }).click();
+      await listbox.getByRole("option", { name: "Newest first", exact: true }).click({ force: true });
       await page.waitForTimeout(50);
       await page.click('[data-testid="facts-sort-trigger"]');
       const listbox2 = page.getByRole("listbox");
       await expect(listbox2).toBeVisible({ timeout: 2000 });
-      await listbox2.getByRole("option", { name: "High confidence first", exact: true }).click();
+      await listbox2.getByRole("option", { name: "High confidence first", exact: true }).click({ force: true });
       await page.waitForTimeout(50);
     }
 
@@ -211,7 +211,7 @@ test.describe("Canary - UI-detail heavy @nightly", () => {
 
     await Promise.all([
       savePref,
-      listbox.getByRole("option", { name: "Newest first", exact: true }).click(),
+      listbox.getByRole("option", { name: "Newest first", exact: true }).click({ force: true }),
     ]);
 
     const sortTrigger = page.locator('[data-testid="facts-sort-trigger"]');

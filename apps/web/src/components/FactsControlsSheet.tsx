@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Star, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Loader2, Star, CheckCircle2, Clock, AlertTriangle, FolderOpen } from "lucide-react";
 import { ViewsPanel } from "@/components/ViewsPanel";
 import type { SavedViewState } from "@/lib/savedViews";
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -34,6 +34,8 @@ export interface FactsControlsSheetProps {
     putPreference: (workspaceId: string, payload: { project_id: string; key: string; value_json: string }) => Promise<unknown>;
     dedupMutation: UseMutationResult<unknown, Error, void, unknown>;
     factsCount: number;
+    /** When set, shows a Buckets button in the sheet (same testid as toolbar for E2E). */
+    onOpenBuckets?: () => void;
 }
 
 export function FactsControlsSheet({
@@ -62,6 +64,7 @@ export function FactsControlsSheet({
     putPreference,
     dedupMutation,
     factsCount,
+    onOpenBuckets,
 }: FactsControlsSheetProps) {
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -70,6 +73,23 @@ export function FactsControlsSheet({
                     <SheetTitle className="text-base">Facts controls</SheetTitle>
                 </SheetHeader>
                 <div className="space-y-6 overflow-y-auto">
+                    {onOpenBuckets && (
+                        <section>
+                            <Button
+                                data-testid="buckets-panel-open"
+                                variant="outline"
+                                size="sm"
+                                className="w-full h-9 text-xs focus-visible:ring-2 focus-visible:ring-ring/30"
+                                onClick={() => {
+                                    onOpenChange(false);
+                                    onOpenBuckets();
+                                }}
+                            >
+                                <FolderOpen className="w-3.5 h-3.5 mr-1.5" />
+                                Buckets
+                            </Button>
+                        </section>
+                    )}
                     <section>
                         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sort & Group</h3>
                         <div className="space-y-3">

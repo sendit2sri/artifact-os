@@ -1,5 +1,6 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
+import { randomUUID } from "@/lib/utils";
 import type { FactView } from "@/types/factView";
 export type { FactView };
 
@@ -269,7 +270,7 @@ export async function ingestUrl(projectId: string, workspaceId: string, url: str
 
 /** Demo seed: calls test/seed when NEXT_PUBLIC_ENABLE_TEST_SEED is set. Resets project and creates sample facts. */
 export async function seedDemoProject(projectId: string): Promise<{ project_id: string; facts_count: number }> {
-  const sourceId = crypto.randomUUID();
+  const sourceId = randomUUID();
   const res = await fetch(`${API_URL}/test/seed`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
