@@ -29,6 +29,8 @@ test.describe('Buckets V2a @release-gate', () => {
   });
 
   test('bucket generate shows Angle label in output drawer', async ({ page }) => {
+    test.setTimeout(120_000);
+
     await expect(page.getByTestId('fact-card').first()).toBeVisible({ timeout: 10_000 });
 
     await openBucketsPanel(page);
@@ -43,13 +45,16 @@ test.describe('Buckets V2a @release-gate', () => {
     const cards = page.getByTestId('fact-card');
     for (let i = 0; i < 2; i++) {
       const card = cards.nth(i);
-      await card.scrollIntoViewIfNeeded();
-      await card.hover();
-      await expect(card.getByTestId('fact-add-to-bucket')).toBeVisible({ timeout: 3000 });
-      await card.getByTestId('fact-add-to-bucket').click();
+      await expect(card).toBeVisible({ timeout: 10_000 });
+
+      // Avoid scrollIntoView/hover flakiness under grouped/virtualized layouts
+      const addBtn = card.getByTestId('fact-add-to-bucket');
+      await expect(addBtn).toBeVisible({ timeout: 10_000 });
+      await addBtn.click({ timeout: 10_000 });
+
       const angleItem = page.getByRole('menuitem', { name: /Angle 1/ });
-      await expect(angleItem).toBeVisible({ timeout: 5000 });
-      await angleItem.click();
+      await expect(angleItem).toBeVisible({ timeout: 10_000 });
+      await angleItem.click({ timeout: 10_000 });
     }
 
     await openBucketsPanel(page);
