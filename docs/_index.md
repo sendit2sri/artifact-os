@@ -77,6 +77,7 @@ Start here: [[README]] — buckets and naming.
 - [[features/FEATURE_SYNTHESIS_HISTORY]]
 - [[features/krisp-v1.5-youtube-captions-plan]] — Krisp V1.5: YouTube captions-only ingest + fallback
 - [[features/export-trust-multiplier-plan]] — Export: MD/JSON clarity, evidence, preview/summary, Copy + Download, stable filenames
+- [[features/export-ux-mode-switch-plan]] — Export: Project vs Last output mode switch, counts, stable filenames, Copy/Download both modes
 
 ## Architecture
 - [[architecture/]]

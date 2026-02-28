@@ -14,7 +14,7 @@ test.describe('Export with Evidence', () => {
   test('export facts CSV with evidence, downloaded content contains evidence_snippet column and snippet', async ({ page }) => {
     await page.getByTestId('export-button').click();
     await expect(page.getByTestId('export-panel')).toBeVisible();
-
+    await page.getByTestId('export-mode-project').click();
     const csvEvidenceBtn = page.getByTestId('export-facts-csv-evidence');
     await expect(csvEvidenceBtn).toBeVisible({ timeout: 5000 });
     await expect(csvEvidenceBtn).toBeEnabled();

@@ -15,9 +15,8 @@ test.describe('Export', () => {
 
   test('Export Markdown success', async ({ page, seed }) => {
     await page.getByTestId('export-button').click();
-
     await expect(page.getByTestId('export-panel')).toBeVisible();
-
+    await page.getByTestId('export-mode-project').click();
     await page.getByTestId('export-option-markdown').click();
 
     await expect(async () => {
@@ -50,6 +49,7 @@ test.describe('Export', () => {
   test('Export Markdown then Copy shows success feedback', async ({ page, seed }) => {
     await page.getByTestId('export-button').click();
     await expect(page.getByTestId('export-panel')).toBeVisible();
+    await page.getByTestId('export-mode-project').click();
     await page.getByTestId('export-option-markdown').click();
     await expect(page.getByTestId('export-success')).toBeVisible({ timeout: 8000 });
     await expect(page.getByTestId('export-copy')).toBeVisible();
@@ -59,9 +59,8 @@ test.describe('Export', () => {
 
   test('Export error + retry', async ({ page }) => {
     await page.getByTestId('export-button').click();
-
     await expect(page.getByTestId('export-panel')).toBeVisible();
-
+    await page.getByTestId('export-mode-project').click();
     let requestCount = 0;
     await page.route('**/api/v1/projects/*/export*', async (route) => {
       requestCount++;
@@ -72,7 +71,6 @@ test.describe('Export', () => {
       }
       await route.continue();
     });
-
     await page.getByTestId('export-option-markdown').click();
 
     await expect(async () => {
