@@ -76,6 +76,7 @@ Start here: [[README]] — buckets and naming.
 - [[features/TOOLBAR_CONSOLIDATION_PLAN]] — Toolbar: Tabs + Search + Filters sheet + Primary CTA; move Sort/Group/Collapse/Selected into sheet
 - [[features/FEATURE_SYNTHESIS_HISTORY]]
 - [[features/krisp-v1.5-youtube-captions-plan]] — Krisp V1.5: YouTube captions-only ingest + fallback
+- [[features/export-trust-multiplier-plan]] — Export: MD/JSON clarity, evidence, preview/summary, Copy + Download, stable filenames
 
 ## Architecture
 - [[architecture/]]

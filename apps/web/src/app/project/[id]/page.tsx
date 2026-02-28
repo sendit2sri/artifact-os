@@ -2494,6 +2494,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 onOpenChange={setShowExportPanel}
                 projectId={projectId}
                 lastOutputId={lastOutputSummary?.id ?? null}
+                factsCount={facts?.length ?? 0}
+                sourcesCount={sources?.length ?? 0}
+                outputsCount={outputsList?.length ?? 0}
             />
 
             <SourceHealthPanel
