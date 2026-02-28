@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Plus, Trash2, X, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, randomUUID } from "@/lib/utils";
 
 export interface Bucket {
   id: string;
@@ -47,7 +47,7 @@ export function BucketsPanel({
 
   const addBucket = () => {
     const name = newBucketName.trim() || "Unnamed";
-    onBucketsChange((prev) => [...prev, { id: crypto.randomUUID(), name, factIds: [] }]);
+    onBucketsChange((prev) => [...prev, { id: randomUUID(), name, factIds: [] }]);
     setNewBucketName("");
   };
 

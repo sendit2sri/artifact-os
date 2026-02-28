@@ -4,6 +4,8 @@
  * Default: artifact_default_view_v1:${projectId}
  */
 
+import { randomUUID } from "@/lib/utils";
+
 export type ViewScopeType = "DOMAIN" | "URL" | null;
 export type ViewMode = "key" | "all" | "pinned" | "graph";
 export type SortBy = "needs_review" | "key-first" | "confidence" | "newest";
@@ -50,7 +52,7 @@ export function setSavedViews(projectId: string, views: SavedView[]): void {
 
 export function addSavedView(projectId: string, name: string, state: SavedViewState): SavedView {
   const views = getSavedViews(projectId);
-  const id = crypto.randomUUID();
+  const id = randomUUID();
   const created_at = new Date().toISOString();
   const view: SavedView = { id, name, created_at, state };
   setSavedViews(projectId, [...views, view]);
