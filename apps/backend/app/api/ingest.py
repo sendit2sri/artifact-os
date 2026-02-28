@@ -1,13 +1,17 @@
 import os
 import uuid
+import requests
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from app.db.session import get_session
 from app.workers.celery_app import celery_app
-from app.models import Job, JobStatus, SourceDoc
+from app.models import Job, JobStatus, SourceDoc, Project
 from app.extractors import detect_source_type, normalize_url
+from app.services.scira import run_query_ingest, check_rate_limit
+from app.search.tavily import TavilySearchProvider
+from app.search.provider import SearchResult
 
 # FastAPI Router
 router = APIRouter()
@@ -15,11 +19,32 @@ router = APIRouter()
 # Standardized steps (must match worker)
 JOB_STEP_DONE = "DONE"
 
+def _scira_enabled() -> bool:
+    return os.environ.get("SCIRA_QUERY_INGEST_ENABLED", "false").lower() == "true"
+
+
+SCIRA_USE_MOCK = os.environ.get("SCIRA_USE_MOCK_SEARCH", "false").lower() == "true"
+
+
+def get_search_provider():
+    """Return mock provider when SCIRA_USE_MOCK_SEARCH=true or no TAVILY_API_KEY; else Tavily."""
+    if SCIRA_USE_MOCK or not os.environ.get("TAVILY_API_KEY"):
+        from app.search.mock import MockSearchProvider
+        return MockSearchProvider()
+    return TavilySearchProvider()
+
+
 # Request schemas
 class IngestURLRequest(BaseModel):
     project_id: str
     workspace_id: str
     url: str
+
+
+class IngestQueryRequest(BaseModel):
+    workspace_id: str
+    query: str
+    max_urls: int = 5
 
 # API Endpoints
 @router.post("/ingest")
@@ -199,3 +224,59 @@ async def ingest_file(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{project_id}/ingest/query")
+def ingest_query(
+    project_id: str,
+    payload: IngestQueryRequest,
+    db: Session = Depends(get_session),
+    search_provider=Depends(get_search_provider),
+):
+    """Search by query, enqueue up to N URLs into ingest pipeline (feature-flagged, rate-limited)."""
+    if not _scira_enabled():
+        raise HTTPException(
+            status_code=403,
+            detail="Query search is not enabled.",
+        )
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid project_id")
+    project = db.get(Project, project_uuid)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        workspace_uuid = uuid.UUID(payload.workspace_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid workspace_id")
+    if not (payload.query or "").strip():
+        raise HTTPException(status_code=400, detail="query is required")
+    if len(payload.query) > 500:
+        raise HTTPException(status_code=400, detail="query must be at most 500 characters")
+    max_urls = max(1, min(payload.max_urls, 5))
+    try:
+        check_rate_limit(project_uuid, db)
+    except ValueError as e:
+        raise HTTPException(status_code=429, detail=str(e))
+    try:
+        result = run_query_ingest(
+            project_id=project_uuid,
+            workspace_id=workspace_uuid,
+            query=payload.query.strip(),
+            max_urls=max_urls,
+            db=db,
+            search_provider=search_provider,
+        )
+        return result
+    except ValueError as e:
+        msg = str(e)
+        if "query" in msg.lower():
+            raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)
+    except (requests.exceptions.RequestException, requests.exceptions.HTTPError) as e:
+        print(f"Scira search provider error: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Search is temporarily unavailable. Try again later.",
+        )

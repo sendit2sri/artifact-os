@@ -172,6 +172,13 @@ class Job(SQLModel, table=True):
     
     project: Optional[Project] = Relationship(back_populates="jobs")
 
+class SciraUsage(SQLModel, table=True):
+    """Per-project rate limit for Scira query ingest (one row per project)."""
+    __tablename__ = "scira_usage"
+    project_id: uuid.UUID = Field(foreign_key="projects.id", primary_key=True)
+    last_used_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class IngestRule(SQLModel, table=True):
     """Auto-ingest rules (V4): folder_watch, rss_ingest, scheduled_url. Worker picks up in V4b."""
     __tablename__ = "ingest_rules"
