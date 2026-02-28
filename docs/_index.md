@@ -71,6 +71,7 @@ Start here: [[README]] — buckets and naming.
 ## Features
 - [[features/]]
 - [[features/scira-v1-query-intake-plan]] — Scira V1: query-based intake (search → enqueue URLs, feature-flagged, rate-limited)
+- [[features/scira-v1.1-query-ui-plan]] — Scira V1.1: Query intake UI on project page (plan)
 - [[features/graph-view-ticnote-v1-plan]] — Graph View (TicNote V1): clusters + click-to-focus facts list
 - [[features/TOOLBAR_CONSOLIDATION_PLAN]] — Toolbar: Tabs + Search + Filters sheet + Primary CTA; move Sort/Group/Collapse/Selected into sheet
 - [[features/FEATURE_SYNTHESIS_HISTORY]]

@@ -24,7 +24,7 @@ import { ProjectOverview } from "@/components/ProjectOverview";
 import { OnboardingOverlay, getOnboardingCompleted } from "@/components/OnboardingOverlay";
 import { PhaseIndicator, PhaseStatusLine, PhaseProgressBar } from "@/components/PhaseIndicator";
 import { computeAppPhase, getPhaseCTA, canPerformAction } from "@/lib/phase";
-import { fetchProject, fetchProjectFacts, fetchProjectJobs, ingestUrl, resetProject, synthesizeFacts, Fact, Job, uploadFile, batchUpdateFacts, Output, fetchProjectOutputs, fetchOutput, patchOutput, OutputSummary, updateProjectName, seedDemoProject, seedDemoSources, retrySource, updateFact, dedupFacts, fetchSourcesSummary, fetchWorkspaces, fetchPreferences, putPreference, fetchFactsGroup, fetchOutputEvidenceMap, type FactsGroupedResponse, type OutputEvidenceMapFact, type SynthesizeFactInput } from "@/lib/api";
+import { fetchProject, fetchProjectFacts, fetchProjectJobs, ingestUrl, resetProject, synthesizeFacts, Fact, Job, uploadFile, batchUpdateFacts, Output, fetchProjectOutputs, fetchOutput, patchOutput, OutputSummary, updateProjectName, seedDemoProject, seedDemoSources, retrySource, updateFact, dedupFacts, fetchSourcesSummary, fetchWorkspaces, fetchPreferences, putPreference, fetchFactsGroup, fetchOutputEvidenceMap, ingestQuery, type FactsGroupedResponse, type OutputEvidenceMapFact, type SynthesizeFactInput, type QueryIngestResponse } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Layout, Search, Sparkles, X, Home, ChevronRight, Download, UploadCloud, Check, Star, FileText, Video, AlignLeft, Moon, Sun, Clock, CheckCircle2, AlertTriangle, History, List, Activity, Menu, SlidersHorizontal, Share2, FolderOpen } from "lucide-react";
@@ -166,7 +166,10 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     const migratedRef = useRef(false);
     const [viewsOpen, setViewsOpen] = useState(false);
     const [urlInput, setUrlInput] = useState("");
-    const [inputType, setInputType] = useState<"url" | "file">("url");
+    const [inputType, setInputType] = useState<"url" | "file" | "query">("url");
+    const [queryInput, setQueryInput] = useState("");
+    const [queryError, setQueryError] = useState<string | null>(null);
+    const [lastQueryResult, setLastQueryResult] = useState<QueryIngestResponse | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [viewingFact, setViewingFact] = useState<Fact | null>(null);
     const [evidenceFactIdsSnapshot, setEvidenceFactIdsSnapshot] = useState<string[]>([]);
@@ -785,6 +788,34 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             toast.error(errorMsg);
             console.error("Upload error:", error);
         }
+    });
+
+    const showQueryTab = process.env.NEXT_PUBLIC_SCIRA_QUERY_INGEST_ENABLED === "true";
+    const queryIngestMutation = useMutation({
+        mutationFn: () => ingestQuery(projectId, workspaceId, { query: queryInput.trim(), max_urls: 5 }),
+        onMutate: () => setQueryError(null),
+        onSuccess: (data: QueryIngestResponse) => {
+            const added = data.urls_enqueued;
+            const skipped = data.urls_skipped_duplicate;
+            setQueryInput("");
+            setAddSourceSheetOpen(false);
+            setLastQueryResult(data);
+            queryClient.invalidateQueries({ queryKey: ["project-jobs", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["project-facts", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["project-sources", projectId] });
+            if (added === 0 && skipped > 0) {
+                toast.info(`All ${skipped} sources were already in the project.`);
+            } else if (skipped > 0) {
+                toast.success(`Added ${added} sources, ${skipped} already in project.`);
+            } else {
+                toast.success(`Added ${added} source${added !== 1 ? "s" : ""}.`);
+            }
+        },
+        onError: (error: Error) => {
+            const msg = error.message || "Query search failed.";
+            setQueryError(msg);
+            toast.error(msg);
+        },
     });
 
     const dedupMutation = useMutation({
@@ -1707,32 +1738,63 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 {/* Row 2: Primary action zone — Add Source (Add = only primary CTA) */}
                 <div className="border-t border-border/50 px-4 sm:px-6 py-2.5 flex items-center min-w-0">
                     {isSm ? (
-                        <div className="w-full max-w-3xl flex flex-wrap items-center gap-3 bg-muted/30 border border-border/80 rounded-xl px-3 py-2 shadow-sm min-w-0">
-                            <div className="flex gap-1 bg-background/60 rounded-lg p-0.5 shrink-0 border border-border/60">
-                                <button data-testid="source-tab-url" onClick={() => setInputType("url")} className={cn("px-2.5 py-1.5 text-xs font-medium rounded-md transition-all", inputType === "url" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}>URL</button>
-                                <button onClick={() => setInputType("file")} className={cn("px-2.5 py-1.5 text-xs font-medium rounded-md transition-all", inputType === "file" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}>Upload</button>
+                        <div className="w-full max-w-3xl flex flex-col gap-2 min-w-0">
+                            <div className="flex flex-wrap items-center gap-3 bg-muted/30 border border-border/80 rounded-xl px-3 py-2 shadow-sm min-w-0">
+                                <div className="flex gap-1 bg-background/60 rounded-lg p-0.5 shrink-0 border border-border/60">
+                                    <button data-testid="source-tab-url" onClick={() => setInputType("url")} className={cn("px-2.5 py-1.5 text-xs font-medium rounded-md transition-all", inputType === "url" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}>URL</button>
+                                    <button onClick={() => setInputType("file")} className={cn("px-2.5 py-1.5 text-xs font-medium rounded-md transition-all", inputType === "file" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}>Upload</button>
+                                    {showQueryTab && (
+                                        <button data-testid="source-tab-query" onClick={() => setInputType("query")} className={cn("px-2.5 py-1.5 text-xs font-medium rounded-md transition-all", inputType === "query" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}>Query</button>
+                                    )}
+                                </div>
+                                {inputType === "url" ? (
+                                    <>
+                                        <div className="relative flex flex-col gap-1 min-w-0 flex-1 basis-32 sm:basis-48">
+                                            <Input ref={urlInputRef} data-testid="source-url-input" placeholder="Paste a source URL..." value={urlInput} onChange={(e) => { setUrlInput(e.target.value); setAddUrlError(null); }} className="min-w-0 w-full max-w-[20rem] h-9 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30" />
+                                            {(addUrlError || (trimmedUrl && !isValidUrl)) && (
+                                                <div data-testid="source-add-error" className="text-xs text-destructive" title={addUrlError || "Invalid URL"}>
+                                                    {addUrlError || "Invalid URL. Must start with http:// or https://"}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <Button data-testid="source-add-button" data-variant="primary" size="sm" className="h-9 px-5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30" onClick={() => ingestMutation.mutate()} disabled={ingestMutation.isPending || !isValidUrl}>
+                                            {ingestMutation.isPending ? <span data-testid="source-add-loading"><Loader2 className="w-4 h-4 animate-spin" /></span> : <><Plus className="w-4 h-4 mr-1.5" /> Add</>}
+                                        </Button>
+                                    </>
+                                ) : inputType === "query" ? (
+                                    <>
+                                        <div className="flex flex-col gap-1 min-w-0 flex-1 basis-32 sm:basis-48">
+                                            <Input data-testid="source-query-input" placeholder="e.g. climate change 2024" value={queryInput} onChange={(e) => { setQueryInput(e.target.value); setQueryError(null); }} className="min-w-0 w-full max-w-[20rem] h-9 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30" />
+                                            {queryError && <div className="text-xs text-destructive">{queryError}</div>}
+                                        </div>
+                                        <Button data-testid="source-query-submit" data-variant="primary" size="sm" className="h-9 px-5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30" onClick={() => queryIngestMutation.mutate()} disabled={queryIngestMutation.isPending || !queryInput.trim() || queryInput.trim().length > 500}>
+                                            {queryIngestMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Search className="w-4 h-4 mr-1.5" /> Search and add</>}
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Input type="file" accept=".pdf,.txt,.md" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} className="min-w-0 max-w-[20rem] h-9 text-sm bg-background/50 border-0 text-foreground file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80" />
+                                        <Button data-variant="primary" size="sm" className="h-9 px-5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30" onClick={() => uploadMutation.mutate()} disabled={uploadMutation.isPending || !selectedFile}>
+                                            {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><UploadCloud className="w-4 h-4 mr-1.5" /> Upload</>}
+                                        </Button>
+                                    </>
+                                )}
                             </div>
-                            {inputType === "url" ? (
-                                <>
-                                    <div className="relative flex flex-col gap-1 min-w-0 flex-1 basis-32 sm:basis-48">
-                                        <Input ref={urlInputRef} data-testid="source-url-input" placeholder="Paste a source URL..." value={urlInput} onChange={(e) => { setUrlInput(e.target.value); setAddUrlError(null); }} className="min-w-0 w-full max-w-[20rem] h-9 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30" />
-                                        {(addUrlError || (trimmedUrl && !isValidUrl)) && (
-                                            <div data-testid="source-add-error" className="text-xs text-destructive" title={addUrlError || "Invalid URL"}>
-                                                {addUrlError || "Invalid URL. Must start with http:// or https://"}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <Button data-testid="source-add-button" data-variant="primary" size="sm" className="h-9 px-5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30" onClick={() => ingestMutation.mutate()} disabled={ingestMutation.isPending || !isValidUrl}>
-                                        {ingestMutation.isPending ? <span data-testid="source-add-loading"><Loader2 className="w-4 h-4 animate-spin" /></span> : <><Plus className="w-4 h-4 mr-1.5" /> Add</>}
+                            {lastQueryResult && lastQueryResult.jobs.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    <span>Added:</span>
+                                    <ul className="flex flex-wrap gap-x-2 gap-y-0.5 list-disc list-inside">
+                                        {lastQueryResult.jobs.slice(0, 5).map((j) => (
+                                            <li key={j.id} className="truncate max-w-[12rem]" title={j.params?.url}>
+                                                <a href={j.params?.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate inline-block max-w-[12rem]">{j.params?.url}</a>
+                                            </li>
+                                        ))}
+                                        {lastQueryResult.jobs.length > 5 && <li>+{lastQueryResult.jobs.length - 5} more</li>}
+                                    </ul>
+                                    <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setSourcesDrawerOpen(true)}>
+                                        View in Active Sources
                                     </Button>
-                                </>
-                            ) : (
-                                <>
-                                    <Input type="file" accept=".pdf,.txt,.md" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} className="min-w-0 max-w-[20rem] h-9 text-sm bg-background/50 border-0 text-foreground file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80" />
-                                    <Button data-variant="primary" size="sm" className="h-9 px-5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30" onClick={() => uploadMutation.mutate()} disabled={uploadMutation.isPending || !selectedFile}>
-                                        {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><UploadCloud className="w-4 h-4 mr-1.5" /> Upload</>}
-                                    </Button>
-                                </>
+                                </div>
                             )}
                         </div>
                     ) : (
@@ -1765,6 +1827,13 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 onUpload={() => uploadMutation.mutate()}
                 isAddPending={ingestMutation.isPending}
                 isUploadPending={uploadMutation.isPending}
+                showQueryTab={showQueryTab}
+                queryInput={queryInput}
+                setQueryInput={setQueryInput}
+                onQuerySubmit={() => queryIngestMutation.mutate()}
+                isQueryPending={queryIngestMutation.isPending}
+                queryError={queryError}
+                setQueryError={setQueryError}
             />
 
             <SourcesDrawer

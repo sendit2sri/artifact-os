@@ -339,6 +339,50 @@ export async function uploadFile(projectId: string, workspaceId: string, file: F
   return res.json();
 }
 
+// --- SCIRA QUERY INGEST ---
+
+export interface QueryIngestResponse {
+  query: string;
+  urls_found: number;
+  urls_enqueued: number;
+  urls_skipped_duplicate: number;
+  job_ids: string[];
+  jobs: Array<{
+    id: string;
+    status: string;
+    params: { url: string; source_type?: string; canonical_url?: string };
+    [k: string]: unknown;
+  }>;
+}
+
+export async function ingestQuery(
+  projectId: string,
+  workspaceId: string,
+  payload: { query: string; max_urls?: number }
+): Promise<QueryIngestResponse> {
+  const res = await fetch(`${API_URL}/projects/${projectId}/ingest/query`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workspace_id: workspaceId,
+      query: (payload.query || "").trim(),
+      max_urls: payload.max_urls ?? 5,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const detail = typeof err?.detail === "string" ? err.detail : null;
+    if (res.status === 403) throw new Error(detail || "Query search is not enabled.");
+    if (res.status === 429) throw new Error(detail || "Too many searches. Try again in a few minutes.");
+    if (res.status === 400) throw new Error(detail || "Invalid query.");
+    if (res.status === 404) throw new Error(detail || "Project not found.");
+    if (res.status === 502 || res.status === 503) throw new Error(detail || "Search is temporarily unavailable. Try again later.");
+    throw new Error(detail || `Query ingest failed: ${res.status}`);
+  }
+  return res.json() as Promise<QueryIngestResponse>;
+}
+
 // --- DATA FETCHING ---
 
 export interface FactsFilter {
