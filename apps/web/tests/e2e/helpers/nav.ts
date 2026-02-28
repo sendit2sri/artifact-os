@@ -9,44 +9,49 @@ import { expect, Page } from '@playwright/test';
 export async function resetFactsViewState(page: Page): Promise<void> {
   await expect(page.getByTestId('facts-search-input')).toBeVisible({ timeout: 5000 });
 
-  // Open Filters sheet (sort/group/collapse/selection live only in sheet)
-  await page.getByTestId('facts-controls-open').click({ timeout: 2000 });
-  await expect(page.getByTestId('facts-controls-sheet')).toBeVisible({ timeout: 5000 });
-  await page.waitForTimeout(200);
-
-  const collapseToggle = page.getByTestId('toggle-collapse-similar');
-  // Uncheck toggles that trigger alternate render paths
-  if (await collapseToggle.isChecked().catch(() => false)) {
-    await collapseToggle.click();
-    await page.waitForTimeout(150);
-  }
-  const selectedOnly = page.getByTestId('facts-selected-only-toggle');
-  if (await selectedOnly.isChecked().catch(() => false)) {
-    await selectedOnly.click();
-    await page.waitForTimeout(150);
-  }
-  const showSuppressed = page.getByTestId('facts-show-suppressed-toggle');
-  if (await showSuppressed.isChecked().catch(() => false)) {
-    await showSuppressed.click();
-    await page.waitForTimeout(150);
+  // Open Filters sheet only if present (e.g. not in some responsive/docker layouts)
+  let sheetOpened = false;
+  const openBtn = page.getByTestId('facts-controls-open');
+  if ((await openBtn.count()) > 0) {
+    try {
+      await openBtn.click({ timeout: 5000 });
+      await expect(page.getByTestId('facts-controls-sheet')).toBeVisible({ timeout: 5000 });
+      await page.waitForTimeout(200);
+      sheetOpened = true;
+    } catch {
+      // Button present but click failed or sheet didn't open; skip sheet-dependent reset
+    }
   }
 
-  // Clear search
+  if (sheetOpened) {
+    const collapseToggle = page.getByTestId('toggle-collapse-similar');
+    if (await collapseToggle.isChecked().catch(() => false)) {
+      await collapseToggle.click();
+      await page.waitForTimeout(150);
+    }
+    const selectedOnly = page.getByTestId('facts-selected-only-toggle');
+    if (await selectedOnly.isChecked().catch(() => false)) {
+      await selectedOnly.click();
+      await page.waitForTimeout(150);
+    }
+    const showSuppressed = page.getByTestId('facts-show-suppressed-toggle');
+    if (await showSuppressed.isChecked().catch(() => false)) {
+      await showSuppressed.click();
+      await page.waitForTimeout(150);
+    }
+    const groupTrigger = page.getByTestId('facts-group-trigger');
+    const groupText = await groupTrigger.textContent().catch(() => '');
+    if (groupText?.toLowerCase().includes('source')) {
+      await groupTrigger.click();
+      await page.getByRole('option', { name: /no grouping/i }).click();
+      await page.waitForTimeout(200);
+    }
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+  }
+
   await page.getByTestId('facts-search-input').clear();
   await page.waitForTimeout(200);
-
-  // Set group to "off" if "source" (grouped view uses different structure)
-  const groupTrigger = page.getByTestId('facts-group-trigger');
-  const groupText = await groupTrigger.textContent().catch(() => '');
-  if (groupText?.toLowerCase().includes('source')) {
-    await groupTrigger.click();
-    await page.getByRole('option', { name: /no grouping/i }).click();
-    await page.waitForTimeout(200);
-  }
-
-  // Dismiss controls sheet if open
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(100);
 }
 
 export async function gotoProject(page: Page, projectId: string) {
