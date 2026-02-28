@@ -16,7 +16,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE sourcetype ADD VALUE 'MEDIA'")
+    # Safe regardless of migration order: if sourcetype enum was not created yet
+    # (other branch), create it with all 4 values; otherwise add MEDIA if missing.
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'sourcetype') THEN
+                CREATE TYPE sourcetype AS ENUM ('WEB', 'REDDIT', 'YOUTUBE', 'MEDIA');
+            ELSIF NOT EXISTS (
+                SELECT 1 FROM pg_enum e
+                JOIN pg_type t ON e.enumtypid = t.oid
+                WHERE t.typname = 'sourcetype' AND e.enumlabel = 'MEDIA'
+            ) THEN
+                ALTER TYPE sourcetype ADD VALUE 'MEDIA';
+            END IF;
+        END;
+        $$;
+    """)
 
 
 def downgrade() -> None:

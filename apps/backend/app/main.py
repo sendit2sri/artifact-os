@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from sqlmodel import Session, select, SQLModel
 from app.api import ingest, projects, sources, test_helpers, workspaces
-from app.models import ResearchNode, ReviewStatus, Job, Workspace
+from app.models import ResearchNode, ReviewStatus, Job, Workspace, SciraUsage
 from app.db.session import engine
 import os
 import uuid
