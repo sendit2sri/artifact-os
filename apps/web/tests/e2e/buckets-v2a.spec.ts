@@ -34,7 +34,6 @@ test.describe('Buckets V2a @release-gate', () => {
     await openBucketsPanel(page);
     await page.getByTestId('buckets-add-name').fill('Angle 1');
     await page.getByTestId('buckets-add-btn').click();
-    await expect(page.getByTestId('buckets-panel').getByText('Angle 1')).toBeVisible({ timeout: 5000 });
 
     // Close panel so fact list is clickable
     await page.keyboard.press('Escape');
@@ -48,7 +47,9 @@ test.describe('Buckets V2a @release-gate', () => {
       await card.hover();
       await expect(card.getByTestId('fact-add-to-bucket')).toBeVisible({ timeout: 3000 });
       await card.getByTestId('fact-add-to-bucket').click();
-      await page.getByRole('menuitem', { name: /Angle 1/ }).click();
+      const angleItem = page.getByRole('menuitem', { name: /Angle 1/ });
+      await expect(angleItem).toBeVisible({ timeout: 5000 });
+      await angleItem.click();
     }
 
     await openBucketsPanel(page);
