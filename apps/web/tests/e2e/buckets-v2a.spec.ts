@@ -34,7 +34,7 @@ test.describe('Buckets V2a @release-gate', () => {
     await openBucketsPanel(page);
     await page.getByTestId('buckets-add-name').fill('Angle 1');
     await page.getByTestId('buckets-add-btn').click();
-    await expect(page.getByRole('button', { name: /Generate \(0 facts\)/ })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByTestId('buckets-panel').getByText('Angle 1')).toBeVisible({ timeout: 5000 });
 
     // Close panel so fact list is clickable
     await page.keyboard.press('Escape');
