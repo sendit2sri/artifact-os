@@ -1811,6 +1811,10 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 putPreference={putPreference}
                 dedupMutation={dedupMutation}
                 factsCount={(facts ?? []).length}
+                onOpenBuckets={() => {
+                    setFactsControlsOpen(false);
+                    setShowBucketsPanel(true);
+                }}
             />
 
             <Group orientation="horizontal" className="flex-1 min-h-0 min-w-0">

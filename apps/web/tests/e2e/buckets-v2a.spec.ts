@@ -1,5 +1,22 @@
 import { test, expect } from './fixtures/seed';
 import { gotoProject, switchToAllDataView } from './helpers/nav';
+import type { Page } from '@playwright/test';
+
+/** Open Buckets panel via toolbar button or, if missing, via Filters sheet (stable in all layouts). */
+async function openBucketsPanel(page: Page): Promise<void> {
+  const toolbarBtn = page.getByTestId('buckets-panel-open');
+  const visible = await toolbarBtn.isVisible().catch(() => false);
+  if (visible) {
+    await toolbarBtn.scrollIntoViewIfNeeded();
+    await toolbarBtn.click({ timeout: 5000 });
+  } else {
+    await page.getByTestId('facts-controls-open').click({ timeout: 5000 });
+    await expect(page.getByTestId('facts-controls-sheet')).toBeVisible({ timeout: 5000 });
+    await page.waitForTimeout(200);
+    await page.getByTestId('buckets-panel-open').click({ timeout: 5000 });
+  }
+  await expect(page.getByTestId('buckets-panel')).toBeVisible({ timeout: 5000 });
+}
 
 /**
  * Buckets V2a smoke: create bucket → add facts via dropdown → generate → assert Angle label.
@@ -14,9 +31,7 @@ test.describe('Buckets V2a @release-gate', () => {
   test('bucket generate shows Angle label in output drawer', async ({ page }) => {
     await expect(page.getByTestId('fact-card').first()).toBeVisible({ timeout: 10_000 });
 
-    // Open Buckets panel and create "Angle 1"
-    await page.getByTestId('buckets-panel-open').click();
-    await expect(page.getByTestId('buckets-panel')).toBeVisible({ timeout: 5000 });
+    await openBucketsPanel(page);
     await page.getByTestId('buckets-add-name').fill('Angle 1');
     await page.getByTestId('buckets-add-btn').click();
     await expect(page.getByRole('button', { name: /Generate \(0 facts\)/ })).toBeVisible({ timeout: 3000 });
@@ -36,9 +51,7 @@ test.describe('Buckets V2a @release-gate', () => {
       await page.getByRole('menuitem', { name: /Angle 1/ }).click();
     }
 
-    // Open panel and generate from bucket
-    await page.getByTestId('buckets-panel-open').click();
-    await expect(page.getByTestId('buckets-panel')).toBeVisible({ timeout: 5000 });
+    await openBucketsPanel(page);
     await page.getByRole('button', { name: /Generate \(2 facts\)/ }).click();
 
     // Wait for output drawer and Angle label
