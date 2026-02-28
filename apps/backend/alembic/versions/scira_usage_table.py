@@ -21,7 +21,12 @@ def upgrade() -> None:
         "scira_usage",
         sa.Column("project_id", sa.Uuid(), nullable=False),
         sa.Column("last_used_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["project_id"],
+            ["projects.id"],
+            name="scira_usage_project_id_fkey",
+            ondelete="CASCADE",
+        ),
         sa.PrimaryKeyConstraint("project_id"),
     )
 

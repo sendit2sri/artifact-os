@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship, JSON, UniqueConstraint
-from sqlalchemy import Text
+from sqlalchemy import Text, Column, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 # --- Enums ---
 
@@ -175,7 +176,13 @@ class Job(SQLModel, table=True):
 class SciraUsage(SQLModel, table=True):
     """Per-project rate limit for Scira query ingest (one row per project)."""
     __tablename__ = "scira_usage"
-    project_id: uuid.UUID = Field(foreign_key="projects.id", primary_key=True)
+    project_id: uuid.UUID = Field(
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("projects.id", ondelete="CASCADE", name="scira_usage_project_id_fkey"),
+            primary_key=True,
+        ),
+    )
     last_used_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
