@@ -11,7 +11,19 @@ from uuid import UUID
 from datetime import datetime, timezone
 
 from app.db.session import get_session
-from app.models import Project, Job, ResearchNode, SourceDoc, Output, ReviewStatus, JobStatus, IngestRule
+from app.models import (
+    Project,
+    Job,
+    ResearchNode,
+    SourceDoc,
+    Output,
+    ReviewStatus,
+    JobStatus,
+    IngestRule,
+    ProjectBucketSet,
+    ProjectBucketItem,
+    ProjectBucketFact,
+)
 
 router = APIRouter()
 
@@ -42,6 +54,24 @@ class SynthesisRequest(BaseModel):
 
 class AnalysisResponse(BaseModel):
     clusters: List[Dict]
+
+
+# --- Buckets (TicNote V2b) ---
+
+class BucketItemSchema(BaseModel):
+    id: UUID
+    name: str
+    factIds: List[UUID]
+    position: int = 0
+
+
+class BucketsResponse(BaseModel):
+    buckets: List[BucketItemSchema]
+
+
+class BucketsPutRequest(BaseModel):
+    buckets: List[BucketItemSchema]
+
 
 # --- ENDPOINTS ---
 
@@ -81,6 +111,81 @@ def update_project(project_id: str, update: ProjectUpdate, db: Session = Depends
     db.commit()
     db.refresh(project)
     return project
+
+
+@router.get("/projects/{project_id}/buckets", response_model=BucketsResponse)
+def get_project_buckets(project_id: str, db: Session = Depends(get_session)):
+    """Get persisted buckets for a project. Returns empty list if none."""
+    try:
+        p_uuid = UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid project_id")
+    project = db.get(Project, p_uuid)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    bucket_set = db.exec(
+        select(ProjectBucketSet).where(ProjectBucketSet.project_id == p_uuid)
+    ).first()
+    if not bucket_set:
+        return BucketsResponse(buckets=[])
+    items = db.exec(
+        select(ProjectBucketItem).where(ProjectBucketItem.bucket_set_id == bucket_set.id).order_by(ProjectBucketItem.position, ProjectBucketItem.id)
+    ).all()
+    out = []
+    for item in items:
+        facts = db.exec(
+            select(ProjectBucketFact).where(ProjectBucketFact.bucket_item_id == item.id).order_by(ProjectBucketFact.position, ProjectBucketFact.id)
+        ).all()
+        fact_ids = [f.fact_id for f in facts]
+        out.append(BucketItemSchema(id=item.bucket_id, name=item.name, factIds=fact_ids, position=item.position))
+    return BucketsResponse(buckets=out)
+
+
+@router.put("/projects/{project_id}/buckets", response_model=BucketsResponse)
+def put_project_buckets(project_id: str, body: BucketsPutRequest, db: Session = Depends(get_session)):
+    """Replace all persisted buckets for the project. Empty list clears all. Transactional."""
+    try:
+        p_uuid = UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid project_id")
+    project = db.get(Project, p_uuid)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    # Validate: non-empty name, valid UUIDs
+    for b in body.buckets:
+        if not (b.name and b.name.strip()):
+            raise HTTPException(status_code=400, detail="Bucket name required")
+    try:
+        bucket_set = db.exec(
+            select(ProjectBucketSet).where(ProjectBucketSet.project_id == p_uuid)
+        ).first()
+        if not bucket_set:
+            bucket_set = ProjectBucketSet(project_id=p_uuid)
+            db.add(bucket_set)
+            db.flush()
+        set_id = bucket_set.id
+        # Delete all items (CASCADE deletes facts)
+        db.exec(delete(ProjectBucketItem).where(ProjectBucketItem.bucket_set_id == set_id))
+        # Insert new items and facts
+        for idx, b in enumerate(body.buckets):
+            item = ProjectBucketItem(
+                bucket_set_id=set_id,
+                bucket_id=b.id,
+                name=b.name.strip(),
+                position=b.position if b.position is not None else idx,
+            )
+            db.add(item)
+            db.flush()
+            for fidx, fid in enumerate(b.factIds):
+                db.add(ProjectBucketFact(bucket_item_id=item.id, fact_id=fid, position=fidx))
+        bucket_set.updated_at = datetime.now(timezone.utc)
+        db.add(bucket_set)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return get_project_buckets(project_id, db)
+
 
 @router.get("/projects/{project_id}/export")
 def export_project(

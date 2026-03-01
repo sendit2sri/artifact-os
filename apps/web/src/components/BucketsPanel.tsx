@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Plus, Trash2, X, FolderOpen } from "lucide-react";
+import { Sparkles, Plus, Trash2, X, FolderOpen, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, randomUUID } from "@/lib/utils";
 
@@ -31,6 +31,10 @@ interface BucketsPanelProps {
   onGenerateFromBucket: (bucket: Bucket) => void;
   isSynthesizing: boolean;
   onFactDrop?: (bucketId: string, factId: string) => void;
+  bucketsDirty?: boolean;
+  bucketsSaving?: boolean;
+  bucketsSaved?: boolean;
+  onSaveBuckets?: () => void;
 }
 
 export function BucketsPanel({
@@ -42,6 +46,10 @@ export function BucketsPanel({
   onGenerateFromBucket,
   isSynthesizing,
   onFactDrop,
+  bucketsDirty = false,
+  bucketsSaving = false,
+  bucketsSaved = false,
+  onSaveBuckets,
 }: BucketsPanelProps) {
   const [newBucketName, setNewBucketName] = useState("");
 
@@ -85,7 +93,29 @@ export function BucketsPanel({
           <SheetTitle className="flex items-center gap-2">
             <FolderOpen className="w-5 h-5" />
             Buckets
+            {bucketsDirty && (
+              <span data-testid="buckets-dirty" className="text-xs font-normal text-muted-foreground">
+                (unsaved)
+              </span>
+            )}
+            {bucketsSaved && (
+              <span data-testid="buckets-saved" className="text-xs font-normal text-green-600">
+                Saved
+              </span>
+            )}
           </SheetTitle>
+          {onSaveBuckets && (
+            <Button
+              data-testid="buckets-save"
+              size="sm"
+              variant={bucketsDirty ? "default" : "outline"}
+              disabled={!bucketsDirty || bucketsSaving}
+              onClick={onSaveBuckets}
+            >
+              {bucketsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+              {bucketsSaving ? "Saving…" : bucketsSaved ? "Saved" : "Save"}
+            </Button>
+          )}
         </SheetHeader>
         <div className="p-4 border-b border-border flex gap-2 shrink-0">
           <Input

@@ -24,7 +24,7 @@ import { ProjectOverview } from "@/components/ProjectOverview";
 import { OnboardingOverlay, getOnboardingCompleted } from "@/components/OnboardingOverlay";
 import { PhaseIndicator, PhaseStatusLine, PhaseProgressBar } from "@/components/PhaseIndicator";
 import { computeAppPhase, getPhaseCTA, canPerformAction } from "@/lib/phase";
-import { fetchProject, fetchProjectFacts, fetchProjectJobs, ingestUrl, resetProject, synthesizeFacts, Fact, Job, uploadFile, batchUpdateFacts, Output, fetchProjectOutputs, fetchOutput, patchOutput, OutputSummary, updateProjectName, seedDemoProject, seedDemoSources, retrySource, updateFact, dedupFacts, fetchSourcesSummary, fetchWorkspaces, fetchPreferences, putPreference, fetchFactsGroup, fetchOutputEvidenceMap, ingestQuery, type FactsGroupedResponse, type OutputEvidenceMapFact, type SynthesizeFactInput, type QueryIngestResponse } from "@/lib/api";
+import { fetchProject, fetchProjectFacts, fetchProjectJobs, ingestUrl, resetProject, synthesizeFacts, Fact, Job, uploadFile, batchUpdateFacts, Output, fetchProjectOutputs, fetchOutput, patchOutput, OutputSummary, updateProjectName, seedDemoProject, seedDemoSources, retrySource, updateFact, dedupFacts, fetchSourcesSummary, fetchWorkspaces, fetchPreferences, putPreference, fetchFactsGroup, fetchOutputEvidenceMap, ingestQuery, fetchProjectBuckets, putProjectBuckets, type FactsGroupedResponse, type OutputEvidenceMapFact, type SynthesizeFactInput, type QueryIngestResponse } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Layout, Search, Sparkles, X, Home, ChevronRight, Download, UploadCloud, Check, Star, FileText, Video, AlignLeft, Moon, Sun, Clock, CheckCircle2, AlertTriangle, History, List, Activity, Menu, SlidersHorizontal, Share2, FolderOpen } from "lucide-react";
@@ -208,6 +208,8 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     const [sourcesDrawerOpen, setSourcesDrawerOpen] = useState(false);
     const [factsControlsOpen, setFactsControlsOpen] = useState(false);
     const [buckets, setBuckets] = useState<Bucket[]>([]);
+    const [bucketsDirty, setBucketsDirty] = useState(false);
+    const [bucketsSaveStatus, setBucketsSaveStatus] = useState<"saving" | "saved" | null>(null);
     const [showBucketsPanel, setShowBucketsPanel] = useState(false);
     const [synthesisBucketLabel, setSynthesisBucketLabel] = useState<string | null>(null);
     const isSm = useMediaQuery("(min-width: 640px)");
@@ -600,6 +602,39 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         staleTime: 1000 * 60 * 5,
     });
     const lastOutputSummary = outputsList?.[0] ?? null;
+
+    // Project buckets (TicNote V2b): load from API, explicit save
+    const { data: bucketsData } = useQuery({
+        queryKey: ["project-buckets", projectId],
+        queryFn: ({ signal }) => fetchProjectBuckets(projectId, signal),
+        enabled: Boolean(projectId),
+    });
+    useEffect(() => {
+        if (bucketsData?.buckets != null && !bucketsDirty) setBuckets(bucketsData.buckets);
+    }, [bucketsData, bucketsDirty]);
+    useEffect(() => {
+        setBucketsDirty(false);
+    }, [projectId]);
+
+    const handleSaveBuckets = useCallback(async () => {
+        if (!projectId || !bucketsDirty) return;
+        setBucketsSaveStatus("saving");
+        try {
+            const res = await putProjectBuckets(projectId, { buckets });
+            setBuckets(res.buckets);
+            setBucketsDirty(false);
+            setBucketsSaveStatus("saved");
+            setTimeout(() => setBucketsSaveStatus(null), 1500);
+        } catch {
+            setBucketsSaveStatus(null);
+            toast.error("Failed to save buckets");
+        }
+    }, [projectId, bucketsDirty, buckets]);
+
+    const setBucketsWithDirty = useCallback((updater: (prev: Bucket[]) => Bucket[]) => {
+        setBuckets(updater);
+        setBucketsDirty(true);
+    }, []);
 
     // Show onboarding when: 0 sources, 0 facts, not completed, mounted; hide when project has data. Disable in E2E mode.
     // Show onboarding only in EMPTY phase (phase-aware)
@@ -2697,11 +2732,15 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 open={showBucketsPanel}
                 onOpenChange={setShowBucketsPanel}
                 buckets={buckets}
-                onBucketsChange={setBuckets}
+                onBucketsChange={setBucketsWithDirty}
                 factMap={bucketsFactMap}
                 onGenerateFromBucket={handleGenerateFromBucket}
                 isSynthesizing={isSynthesizing}
                 onFactDrop={addFactToBucket}
+                bucketsDirty={bucketsDirty}
+                bucketsSaving={bucketsSaveStatus === "saving"}
+                bucketsSaved={bucketsSaveStatus === "saved"}
+                onSaveBuckets={handleSaveBuckets}
             />
 
             <SelectedFactsDrawer

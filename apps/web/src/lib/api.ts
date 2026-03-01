@@ -618,6 +618,48 @@ export async function resetProject(projectId: string) {
   return res.json();
 }
 
+// --- Project Buckets (TicNote V2b) ---
+
+export interface ProjectBucketItem {
+  id: string;
+  name: string;
+  factIds: string[];
+  position?: number;
+}
+
+export interface ProjectBucketsResponse {
+  buckets: ProjectBucketItem[];
+}
+
+export async function fetchProjectBuckets(
+  projectId: string,
+  signal?: AbortSignal
+): Promise<ProjectBucketsResponse> {
+  const res = await fetch(`${API_URL}/projects/${projectId}/buckets`, { signal });
+  if (res.status === 404) throw new Error("Project not found");
+  if (!res.ok) throw new Error("Failed to fetch buckets");
+  return res.json();
+}
+
+export async function putProjectBuckets(
+  projectId: string,
+  payload: ProjectBucketsResponse,
+  signal?: AbortSignal
+): Promise<ProjectBucketsResponse> {
+  const res = await fetch(`${API_URL}/projects/${projectId}/buckets`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal,
+  });
+  if (res.status === 404) throw new Error("Project not found");
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || "Failed to save buckets");
+  }
+  return res.json();
+}
+
 // --- FACT MANAGEMENT ---
 
 export async function updateFact(factId: string, updates: Partial<Fact>) {

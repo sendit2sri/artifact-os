@@ -62,6 +62,7 @@ class Project(SQLModel, table=True):
     nodes: List["ResearchNode"] = Relationship(back_populates="project")
     canvas_state: Optional["CanvasState"] = Relationship(back_populates="project")
     jobs: List["Job"] = Relationship(back_populates="project")
+    bucket_set: Optional["ProjectBucketSet"] = Relationship(back_populates="project")
 
 class SourceDoc(SQLModel, table=True):
     __tablename__ = "source_docs"
@@ -233,3 +234,38 @@ class Output(SQLModel, table=True):
     
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# --- Project Buckets (TicNote V2b) ---
+
+class ProjectBucketSet(SQLModel, table=True):
+    """One bucket set per project; holds version and updated_at."""
+    __tablename__ = "project_bucket_sets"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="projects.id", unique=True, index=True)
+    version: int = Field(default=1)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    project: Optional["Project"] = Relationship(back_populates="bucket_set")
+    items: List["ProjectBucketItem"] = Relationship(back_populates="bucket_set")
+
+
+class ProjectBucketItem(SQLModel, table=True):
+    """One row per bucket: name and position within the set."""
+    __tablename__ = "project_bucket_items"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    bucket_set_id: uuid.UUID = Field(foreign_key="project_bucket_sets.id", index=True)
+    bucket_id: uuid.UUID = Field(index=True)  # Client-stable id for the bucket
+    name: str
+    position: int = Field(default=0)
+    bucket_set: Optional["ProjectBucketSet"] = Relationship(back_populates="items")
+    facts: List["ProjectBucketFact"] = Relationship(back_populates="bucket_item")
+
+
+class ProjectBucketFact(SQLModel, table=True):
+    """One row per (bucket, fact); fact_id = ResearchNode.id (no FK to avoid cascade)."""
+    __tablename__ = "project_bucket_facts"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    bucket_item_id: uuid.UUID = Field(foreign_key="project_bucket_items.id", index=True)
+    fact_id: uuid.UUID = Field(index=True)  # ResearchNode.id
+    position: int = Field(default=0)
+    bucket_item: Optional["ProjectBucketItem"] = Relationship(back_populates="facts")
